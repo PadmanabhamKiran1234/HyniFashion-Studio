@@ -3810,3 +3810,206 @@ body .footer-letter .newsletter button {
   display: block;
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Centralised notifications and modal dialogs                        */
+/* ------------------------------------------------------------------ */
+.toast-stack {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  background: #fffaf5;
+  border: 1px solid #e4d6c8;
+  border-left: 4px solid #7b2d3b;
+  box-shadow: 0 14px 34px rgba(58, 31, 25, 0.18);
+  color: #3f2d27;
+  pointer-events: auto;
+  animation: toast-in 0.22s ease-out;
+}
+.toast-success { border-left-color: #50734d; }
+.toast-error { border-left-color: #a54a42; }
+.toast-warning { border-left-color: #b2842f; }
+.toast-info { border-left-color: #7b2d3b; }
+.toast-icon { flex-shrink: 0; margin-top: 1px; }
+.toast-success .toast-icon { color: #50734d; }
+.toast-error .toast-icon { color: #a54a42; }
+.toast-warning .toast-icon { color: #b2842f; }
+.toast-info .toast-icon { color: #7b2d3b; }
+.toast-copy { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.toast-copy b { font-size: 11px; letter-spacing: 0.4px; text-transform: uppercase; }
+.toast-copy span { font-size: 11px; line-height: 1.5; }
+.toast-close {
+  flex-shrink: 0;
+  border: 0;
+  background: none;
+  color: #8a7a6e;
+  padding: 2px;
+  cursor: pointer;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(42, 24, 20, 0.55);
+  backdrop-filter: blur(2px);
+}
+.modal-card {
+  width: min(460px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  background: #fffaf5;
+  border: 1px solid #e4d6c8;
+  padding: 22px;
+  box-shadow: 0 24px 60px rgba(40, 22, 18, 0.35);
+  animation: toast-in 0.2s ease-out;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.modal-head h3 { margin: 0; font-size: 21px; color: #3f2d27; }
+.modal-head button {
+  border: 0;
+  background: none;
+  color: #8a7a6e;
+  cursor: pointer;
+  padding: 4px;
+}
+.modal-message { margin: 0 0 16px; font-size: 12px; line-height: 1.6; color: #6b5b51; }
+.modal-fields { display: flex; flex-direction: column; gap: 12px; margin-bottom: 6px; }
+.modal-field { display: flex; flex-direction: column; gap: 5px; }
+.modal-field > span { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #6b5b51; }
+.modal-field input,
+.modal-field textarea {
+  width: 100%;
+  border: 1px solid #d9c9bd;
+  background: #fff;
+  padding: 10px 11px;
+  font: 12px "DM Sans", sans-serif;
+  color: #3f2d27;
+  outline: none;
+  resize: vertical;
+}
+.modal-field input:focus,
+.modal-field textarea:focus { border-color: #7b2d3b; }
+.modal-field small { font-size: 9px; color: #96897f; }
+.modal-error {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  background: #f7e6e2;
+  color: #a54a42;
+  font-size: 11px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+.modal-actions .button {
+  min-width: 108px;
+  justify-content: center;
+}
+.button.danger {
+  background: #a54a42;
+  border-color: #a54a42;
+  color: #fff;
+}
+.button.danger:hover { background: #8d3b34; }
+
+/* Sidebar active state (clearly visible on the burgundy panel) */
+.admin-sidebar > a:not(.admin-logo).active,
+.employee-admin-sidebar > a:not(.admin-logo).active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #fff;
+}
+
+/* Low-stock messaging on customer product pages */
+.stock-note.low-stock { color: #a54a42; font-weight: 600; }
+.stock-note.out-of-stock { color: #8d3b34; font-weight: 600; }
+
+/* Newsletter form */
+.footer-letter .newsletter { display: flex; gap: 8px; align-items: center; }
+.footer-letter .newsletter button[disabled] { opacity: 0.6; cursor: wait; }
+.newsletter-status { margin-top: 8px; font-size: 10px; color: #c9beb5; }
+.newsletter-status.is-error { color: #e8a79f; }
+
+@media (max-width: 640px) {
+  .toast-stack { top: 12px; right: 12px; left: 12px; width: auto; }
+  .modal-card { padding: 18px; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions .button { width: 100%; }
+}
+
+/* Login page essentials */
+.login-logo {
+  display: inline-flex;
+  margin-bottom: 18px;
+}
+.login-logo img {
+  width: 96px;
+  height: auto;
+  object-fit: contain;
+}
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-field input { width: 100%; padding-right: 58px; }
+.password-field button {
+  position: absolute;
+  right: 8px;
+  border: 0;
+  background: none;
+  color: #7b2d3b;
+  font: 10px "DM Sans", sans-serif;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px;
+}
+.login-links {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 6px;
+  font-size: 10px;
+}
+.login-links a { color: #7b2d3b; text-decoration: underline; }
+.login-register { margin-top: 10px; font-size: 10px; color: #6b5b51; }
+.login-register a { color: #7b2d3b; text-decoration: underline; }
+
+/* Admin product size selector inside the form grid */
+.admin-product-form .size-selector-inline {
+  margin: 4px 0 0;
+}
+.admin-product-form .size-selector-inline button {
+  min-width: 44px;
+  height: 34px;
+  cursor: pointer;
+}

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { env } from '../config/env.js';
 import { generateBusinessId } from '../utils/generateId.js';
+import { generateEmployeeId } from '../utils/employeeId.js';
 
 const ROLE_PREFIX = {
   admin: 'ADM',
@@ -126,6 +127,9 @@ export async function registerWholesale(req, res, next) {
 }
 
 // LOGIN FOR ALL FOUR ROLES
+// A common login omits expectedRole, so the role is resolved from the
+// registered account in MongoDB. Role-specific routes still set
+// expectedRole and keep their existing behaviour.
 export async function login(req, res, next) {
   try {
     const {
@@ -135,10 +139,15 @@ export async function login(req, res, next) {
 
     const expectedRole = req.expectedRole;
 
-    const user = await User.findOne({
-      email: email.trim().toLowerCase(),
-      role: expectedRole
-    }).select('+password');
+    const query = {
+      email: email.trim().toLowerCase()
+    };
+
+    if (expectedRole) {
+      query.role = expectedRole;
+    }
+
+    const user = await User.findOne(query).select('+password');
 
     if (
       !user ||
@@ -227,6 +236,7 @@ export async function createEmployee(req, res, next) {
 
     const employee = await User.create({
       userId: await createUserId('employee'),
+      employeeId: await generateEmployeeId(),
       name: name.trim(),
       email: normalizedEmail,
       mobile: String(mobile).trim(),

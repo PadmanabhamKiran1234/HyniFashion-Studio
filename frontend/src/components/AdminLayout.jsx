@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import {
   ArrowUpRight,
   Boxes,
@@ -43,9 +43,9 @@ export default function AdminLayout({ children }) {
         </Link>
         <span className="admin-label">WORKSPACE</span>
         {links.map(([to, label, Icon]) => (
-          <Link key={to} to={to}>
+          <NavLink key={to} to={to} end={to === '/admin'}>
             <Icon size={17} /> {label}
-          </Link>
+          </NavLink>
         ))}
         <div className="admin-bottom">
           <Link to="/">

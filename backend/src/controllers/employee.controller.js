@@ -41,13 +41,14 @@ export const getAllEmployees = async (req, res) => {
       filter.$or = [
         { name: searchRegex },
         { email: searchRegex },
-        { mobile: searchRegex }
+        { mobile: searchRegex },
+        { employeeId: searchRegex }
       ];
     }
 
     const [employees, total] = await Promise.all([
       User.find(filter)
-        .select('name email mobile role status permissions employeeDetails createdAt updatedAt')
+        .select('userId employeeId name email mobile role status permissions employeeDetails createdAt updatedAt')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -91,7 +92,7 @@ export const getEmployeeDetails = async (req, res) => {
       _id: req.params.employeeId,
       role: 'employee'
     })
-      .select('name email mobile role status permissions employeeDetails createdAt updatedAt')
+      .select('userId employeeId name email mobile role status permissions employeeDetails createdAt updatedAt')
       .lean();
 
     if (!employee) {
@@ -225,7 +226,7 @@ export const updateEmployee = async (req, res) => {
       { $set: update },
       { new: true, runValidators: true }
     )
-      .select('name email mobile role status permissions employeeDetails createdAt updatedAt')
+      .select('userId employeeId name email mobile role status permissions employeeDetails createdAt updatedAt')
       .lean();
 
     return res.status(200).json({
@@ -259,7 +260,7 @@ export const getMyEmployeeProfile = async (req, res) => {
       _id: req.user._id,
       role: 'employee'
     })
-      .select('name email mobile role status permissions employeeDetails createdAt updatedAt')
+      .select('userId employeeId name email mobile role status permissions employeeDetails createdAt updatedAt')
       .lean();
 
     if (!employee) {
@@ -328,7 +329,7 @@ export const updateMyEmployeeProfile = async (req, res) => {
       { $set: update },
       { new: true, runValidators: true }
     )
-      .select('name email mobile role status permissions employeeDetails createdAt updatedAt')
+      .select('userId employeeId name email mobile role status permissions employeeDetails createdAt updatedAt')
       .lean();
 
     if (!employee) {

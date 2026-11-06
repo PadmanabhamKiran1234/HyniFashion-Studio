@@ -1,9 +1,47 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Instagram, ArrowUpRight } from "lucide-react";
 import { BRAND } from "../config/brand";
+import { api } from "../config/api";
+import { useToast } from "../context/ToastContext";
 
 export default function Footer() {
+  const toast = useToast();
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+  const [statusError, setStatusError] = useState(false);
+
+  const subscribe = async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    const value = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
+      setStatus("Please enter a valid email address.");
+      setStatusError(true);
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    setBusy(true);
+    setStatus("");
+    setStatusError(false);
+    try {
+      const result = await api.subscribeNewsletter(value);
+      const message = result.message || "Thank you for subscribing!";
+      setStatus(message);
+      setEmail("");
+      if (result.alreadySubscribed) toast.info(message);
+      else toast.success(message);
+    } catch (error) {
+      setStatus(error.message);
+      setStatusError(true);
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <section className="footer-letter">
@@ -15,16 +53,24 @@ export default function Footer() {
           <p>New collections, thoughtful notes and first dibs on the good stuff.</p>
         </div>
         <div>
-          <div className="newsletter-unavailable">
-            <b>Newsletter sign-up is not available yet.</b>
-            <p>
-              The backend does not expose a subscription endpoint, so no email
-              can be stored. Reach the studio through the contact page instead.
+          <form className="newsletter" onSubmit={subscribe} noValidate>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Your email address"
+              aria-label="Email address for newsletter"
+              required
+            />
+            <button type="submit" disabled={busy} aria-label="Subscribe to newsletter">
+              {busy ? "…" : <ArrowUpRight size={18} />}
+            </button>
+          </form>
+          {status && (
+            <p className={`newsletter-status${statusError ? " is-error" : ""}`} role="status">
+              {status}
             </p>
-            <Link className="button outline" to="/contact">
-              Contact the studio
-            </Link>
-          </div>
+          )}
         </div>
       </section>
       <footer className="footer">

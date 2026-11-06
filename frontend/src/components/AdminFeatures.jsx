@@ -16,6 +16,7 @@ import AdminLayout from './AdminLayout';
 import { money } from './ProductCard';
 import { api } from '../config/api';
 import { useStore } from '../context/StoreContext';
+import { useToast } from '../context/ToastContext';
 
 const shortDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN') : '—');
 const dateTime = (value) => (value ? new Date(value).toLocaleString('en-IN') : '—');
@@ -39,6 +40,7 @@ const nextStatusFor = (status) => ({
 }[status] || '');
 
 export function AdminOrders() {
+  const toast = useToast();
   const [orders, setOrders] = useState([]);
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
@@ -61,40 +63,96 @@ export function AdminOrders() {
 
   const act = async (action, success) => {
     setError(''); setNotice('');
-    try { await action(); setNotice(success); await load(); }
-    catch (e) { setError(e.message); }
+    try { await action(); setNotice(success); toast.success(success); await load(); }
+    catch (e) { setError(e.message); toast.error(e.message); }
   };
 
-  const verify = (order) => act(() => api.verifyPayment(order.orderId), `Payment verified for ${order.orderId}.`);
-  const reject = (order) => {
-    const reason = window.prompt('Reason for rejecting this payment proof (3-300 characters):');
-    if (!reason) return;
-    act(() => api.rejectPayment(order.orderId, reason), `Payment proof rejected for ${order.orderId}.`);
+  const verify = async (order) => {
+    const ok = await toast.confirm({
+      title: 'Verify payment',
+      message: `Confirm that the UTR and screenshot for ${order.orderId} are valid?`,
+      confirmText: 'Verify payment',
+    });
+    if (!ok) return;
+    await act(() => api.verifyPayment(order.orderId), `Payment verified for ${order.orderId}.`);
   };
-  const manualVerify = (order) => {
-    const note = window.prompt('Manual verification note (at least 5 characters):');
-    if (!note) return;
-    act(() => api.manualVerifyPayment(order.orderId, note), `Payment manually verified for ${order.orderId}.`);
-  };
-  const advance = (order) => {
+
+  const reject = (order) => toast.prompt({
+    title: 'Reject payment proof',
+    message: `Tell the customer why the proof for ${order.orderId} was rejected.`,
+    confirmText: 'Reject proof',
+    danger: true,
+    fields: [{ name: 'reason', label: 'Reason', type: 'textarea', minLength: 3, maxLength: 300, placeholder: 'Explain what is wrong with the payment proof' }],
+    onSubmit: async ({ reason }) => {
+      await api.rejectPayment(order.orderId, reason);
+      setNotice(`Payment proof rejected for ${order.orderId}.`);
+      toast.success(`Payment proof rejected for ${order.orderId}.`);
+      await load();
+    },
+  });
+
+  const manualVerify = (order) => toast.prompt({
+    title: 'Manual payment verification',
+    message: `Record the verification note for ${order.orderId}.`,
+    confirmText: 'Verify manually',
+    fields: [{ name: 'note', label: 'Verification note', type: 'textarea', minLength: 5, maxLength: 300, placeholder: 'Reference or note confirming the UPI credit' }],
+    onSubmit: async ({ note }) => {
+      await api.manualVerifyPayment(order.orderId, note);
+      setNotice(`Payment manually verified for ${order.orderId}.`);
+      toast.success(`Payment manually verified for ${order.orderId}.`);
+      await load();
+    },
+  });
+
+  const advance = async (order) => {
     const next = nextStatusFor(order.status);
     if (!next) return;
-    let courierName = order.courierName;
-    let trackingId = order.trackingId;
+
     if (next === 'shipped') {
-      courierName = window.prompt('Courier name:', order.courierName || '');
-      trackingId = window.prompt('Tracking ID:', order.trackingId || '');
-      if (!courierName || !trackingId) return;
+      // Shipment is only recorded after the backend accepts the courier
+      // details. If the API fails the modal stays open with the error.
+      await toast.prompt({
+        title: 'Ship order',
+        message: `Enter courier details for ${order.orderId}. The order will be marked shipped only after they are saved.`,
+        confirmText: 'Confirm shipment',
+        fields: [
+          { name: 'courierName', label: 'Courier name', defaultValue: order.courierName || '', minLength: 2, maxLength: 100 },
+          { name: 'trackingId', label: 'Tracking ID', defaultValue: order.trackingId || '', minLength: 2, maxLength: 100 },
+        ],
+        onSubmit: async ({ courierName, trackingId }) => {
+          await api.updateOrderStatus(order.orderId, { status: next, courierName, trackingId });
+          setNotice(`Order ${order.orderId} moved to ${next}.`);
+          toast.success(`Order ${order.orderId} is now shipped.`);
+          await load();
+        },
+      });
+      return;
     }
-    if (!window.confirm(`Move ${order.orderId} from ${statusLabel(order.status)} to ${next}?`)) return;
-    act(() => api.updateOrderStatus(order.orderId, { status: next, courierName, trackingId }), `Order ${order.orderId} moved to ${next}.`);
+
+    const ok = await toast.confirm({
+      title: 'Update order status',
+      message: `Move ${order.orderId} from ${statusLabel(order.status)} to ${next}?`,
+      confirmText: 'Update status',
+    });
+    if (!ok) return;
+    await act(() => api.updateOrderStatus(order.orderId, { status: next }), `Order ${order.orderId} moved to ${next}.`);
   };
-  const updateTracking = (order) => {
-    const courierName = window.prompt('Courier name:', order.courierName || '');
-    const trackingId = window.prompt('Tracking ID:', order.trackingId || '');
-    if (!courierName || !trackingId) return;
-    act(() => api.updateOrderTracking(order.orderId, { courierName, trackingId }), `Tracking details updated for ${order.orderId}.`);
-  };
+
+  const updateTracking = (order) => toast.prompt({
+    title: 'Update tracking details',
+    message: `Edit courier information for ${order.orderId}.`,
+    confirmText: 'Save tracking',
+    fields: [
+      { name: 'courierName', label: 'Courier name', defaultValue: order.courierName || '', minLength: 2, maxLength: 100 },
+      { name: 'trackingId', label: 'Tracking ID', defaultValue: order.trackingId || '', minLength: 2, maxLength: 100 },
+    ],
+    onSubmit: async ({ courierName, trackingId }) => {
+      await api.updateOrderTracking(order.orderId, { courierName, trackingId });
+      setNotice(`Tracking details updated for ${order.orderId}.`);
+      toast.success(`Tracking details updated for ${order.orderId}.`);
+      await load();
+    },
+  });
 
   return (
     <AdminLayout>
@@ -185,6 +243,7 @@ export function AdminOrders() {
 /* ---------------------------- PAYMENT PROOFS ---------------------------- */
 
 export function AdminPayments() {
+  const toast = useToast();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -199,17 +258,36 @@ export function AdminPayments() {
   useEffect(() => { load(); }, [load]);
 
   const verify = async (order) => {
+    const ok = await toast.confirm({
+      title: 'Verify payment',
+      message: `Confirm that the UTR and screenshot for ${order.orderId} are valid?`,
+      confirmText: 'Verify payment',
+    });
+    if (!ok) return;
     setError(''); setNotice('');
-    try { await api.verifyPayment(order.orderId); setNotice(`Payment verified for ${order.orderId}.`); await load(); }
-    catch (e) { setError(e.message); }
+    try {
+      await api.verifyPayment(order.orderId);
+      setNotice(`Payment verified for ${order.orderId}.`);
+      toast.success(`Payment verified for ${order.orderId}.`);
+      await load();
+    } catch (e) {
+      setError(e.message);
+      toast.error(e.message);
+    }
   };
-  const reject = async (order) => {
-    const reason = window.prompt('Reason for rejection (3-300 characters):');
-    if (!reason) return;
-    setError(''); setNotice('');
-    try { await api.rejectPayment(order.orderId, reason); setNotice(`Payment proof rejected for ${order.orderId}.`); await load(); }
-    catch (e) { setError(e.message); }
-  };
+  const reject = (order) => toast.prompt({
+    title: 'Reject payment proof',
+    message: `Tell the customer why the proof for ${order.orderId} was rejected.`,
+    confirmText: 'Reject proof',
+    danger: true,
+    fields: [{ name: 'reason', label: 'Reason', type: 'textarea', minLength: 3, maxLength: 300, placeholder: 'Explain what is wrong with the payment proof' }],
+    onSubmit: async ({ reason }) => {
+      await api.rejectPayment(order.orderId, reason);
+      setNotice(`Payment proof rejected for ${order.orderId}.`);
+      toast.success(`Payment proof rejected for ${order.orderId}.`);
+      await load();
+    },
+  });
 
   return (
     <AdminLayout>
@@ -242,9 +320,10 @@ export function AdminPayments() {
 
 /* ----------------------------- CATEGORIES ----------------------------- */
 
-const emptyCategory = { name: '', description: '', image: '', displayOrder: '0', status: 'active' };
+const emptyCategory = { name: '', description: '', displayOrder: '0', status: 'active' };
 
 export function AdminCategories() {
+  const toast = useToast();
   const { refreshCategories, refreshProducts } = useStore();
   const [adminCategories, setAdminCategories] = useState([]);
   const [form, setForm] = useState(emptyCategory);
@@ -263,23 +342,34 @@ export function AdminCategories() {
   const save = async (event) => {
     event.preventDefault(); setError(''); setNotice('');
     try {
-      const payload = { name: form.name.trim(), description: form.description || '', image: form.image || '', displayOrder: Number(form.displayOrder) || 0, status: form.status || 'active' };
+      const payload = { name: form.name.trim(), description: form.description || '', displayOrder: Number(form.displayOrder) || 0, status: form.status || 'active' };
       if (editing) await api.updateCategory(editing.categoryId, payload);
       else await api.createCategory(payload);
       setForm(emptyCategory); setEditing(null);
       await Promise.all([loadCategories(), refreshCategories(), refreshProducts()]);
       setNotice(editing ? 'Category updated.' : 'Category created.');
-    } catch (e) { setError(e.message); }
+      toast.success(editing ? 'Category updated.' : 'Category created.');
+    } catch (e) { setError(e.message); toast.error(e.message); }
   };
   const edit = (category) => {
     setEditing(category);
-    setForm({ name: category.name || '', description: category.description || '', image: category.image || '', displayOrder: String(category.displayOrder || 0), status: category.status || 'active' });
+    setForm({ name: category.name || '', description: category.description || '', displayOrder: String(category.displayOrder || 0), status: category.status || 'active' });
   };
   const remove = async (category) => {
-    if (!window.confirm(`Delete category ${category.name}?`)) return;
+    const ok = await toast.confirm({
+      title: 'Delete category',
+      message: `Delete ${category.name}? Products using it may need to be reassigned.`,
+      confirmText: 'Delete category',
+      danger: true,
+    });
+    if (!ok) return;
     setError(''); setNotice('');
-    try { await api.deleteCategory(category.categoryId); await Promise.all([loadCategories(), refreshCategories()]); setNotice('Category deleted.'); }
-    catch (e) { setError(e.message); }
+    try {
+      await api.deleteCategory(category.categoryId);
+      await Promise.all([loadCategories(), refreshCategories()]);
+      setNotice('Category deleted.');
+      toast.success('Category deleted.');
+    } catch (e) { setError(e.message); toast.error(e.message); }
   };
 
   return (
@@ -292,7 +382,6 @@ export function AdminCategories() {
             <label>Name<input required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
             <label>Display order<input type="number" min="0" value={form.displayOrder} onChange={(e) => setForm({ ...form, displayOrder: e.target.value })} /></label>
             <label>Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
-            <label>Image URL<input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https://..." /></label>
             <label className="span-2">Description<input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
             <div className="form-actions" style={{ gridColumn: '1 / -1' }}>
               <button className="button dark">{editing ? 'Save category' : 'Create category'}</button>

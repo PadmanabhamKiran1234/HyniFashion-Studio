@@ -501,9 +501,43 @@ export async function getProducts(req, res, next) {
     }
 
     if (search.trim()) {
-      filter.$text = {
-        $search: search.trim(),
-      };
+      const term = search.trim();
+      const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(safeTerm, 'i');
+
+      // Match category names/slugs too, so searching "Sarees" returns every
+      // product in that category even if the word is not in the product name.
+      // Both directions are checked to support partial/plural searches.
+      const allCategories = await Category.find({})
+        .select('_id name slug')
+        .lean();
+      const normalizedTerm = term.toLowerCase();
+      const matchingCategories = allCategories.filter((item) => {
+        const name = String(item.name || '').toLowerCase();
+        const slug = String(item.slug || '').toLowerCase();
+        return (
+          (name && (name.includes(normalizedTerm) || normalizedTerm.includes(name))) ||
+          (slug && (slug.includes(normalizedTerm) || normalizedTerm.includes(slug)))
+        );
+      });
+
+      filter.$or = [
+        { name: regex },
+        { code: regex },
+        { category: regex },
+        { subcategory: regex },
+        ...(matchingCategories.length
+          ? [
+              { categoryId: { $in: matchingCategories.map(item => item._id) } },
+              ...matchingCategories.map(item => ({
+                category: new RegExp(
+                  String(item.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+                  'i'
+                )
+              }))
+            ]
+          : [])
+      ];
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {

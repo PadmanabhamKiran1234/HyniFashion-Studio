@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   CalendarDays,
@@ -16,6 +16,7 @@ import {
 import { money } from "./ProductCard";
 import { api } from "../config/api";
 import { useStore } from "../context/StoreContext";
+import { useToast } from "../context/ToastContext";
 
 const localDate = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -34,9 +35,15 @@ const saleDate = (sale) => localDate(new Date(sale.soldAt));
 const sellingPriceOf = (product) =>
   Number(product?.customerPrice ?? ((product?.sellingPrice || product?.price || 0) * (1 - (product?.discount || 0) / 100)));
 const hoursLabel = (hours) => (Number.isFinite(hours) ? `${hours.toFixed(2)} hrs` : "—");
-const hoursFor = (record) =>
-  record.totalWorkingHours ??
-  (record.checkInAt ? (Date.now() - new Date(record.checkInAt).getTime()) / 3600000 : 0);
+const hoursFor = (record) => {
+  if (!record) return 0;
+  if (record.checkOutAt) {
+    if (Number.isFinite(Number(record.totalMinutes))) return Number(record.totalMinutes) / 60;
+    if (record.totalWorkingHours != null) return record.totalWorkingHours;
+  }
+  if (record.totalWorkingHours != null) return record.totalWorkingHours;
+  return record.checkInAt ? (Date.now() - new Date(record.checkInAt).getTime()) / 3600000 : 0;
+};
 const makeCsv = (filename, headers, rows) => {
   const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   const content = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\r\n");
@@ -123,6 +130,7 @@ export function EmployeeDashboard() {
     recordEmployeeSale,
   } = useStore();
   const navigate = useNavigate();
+  const toast = useToast();
   const [, setClock] = useState(Date.now());
   const employee = employees.find((item) => item.id === user?.employeeId);
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -177,8 +185,15 @@ export function EmployeeDashboard() {
 
   const notifyAction = async (action) => {
     setNotice(""); setError("");
-    try { await action(); setNotice("Attendance updated successfully."); }
-    catch (actionError) { setError(actionError.message); }
+    try {
+      await action();
+      setNotice("Attendance updated successfully.");
+      toast.success("Attendance updated successfully.");
+    }
+    catch (actionError) {
+      setError(actionError.message);
+      toast.error(actionError.message);
+    }
   };
   const submitSale = async (event) => {
     event.preventDefault();
@@ -379,7 +394,7 @@ export function EmployeeDashboard() {
             {!myAttendance.length && <p className="employee-empty">Check in to start your attendance history.</p>}
           </div>
         </section>
-        <p className="employee-privacy-note">Sales are recorded in the backend. Attendance actions are unavailable because the supplied backend has no attendance endpoints yet.</p>
+        <p className="employee-privacy-note">Sales and attendance are recorded securely against your signed-in account.</p>
       </div>
     </main>
   );
@@ -401,7 +416,7 @@ function AdminFeatureLayout({ title, children }) {
       <aside className="employee-admin-sidebar">
         <Link to="/admin" className="admin-logo"><img src="/images/hyni-logo.png" alt="Hyni Fashion Studio" /><span>Studio Admin</span></Link>
         <span className="admin-label">TEAM MANAGEMENT</span>
-        {links.map(([to, label, Icon]) => <Link key={to} to={to}><Icon size={17} />{label}</Link>)}
+        {links.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === "/admin"}><Icon size={17} />{label}</NavLink>)}
         <Link to="/admin/products"><Package size={17} />Products</Link>
         <Link to="/" className="employee-admin-store">View storefront</Link>
         <button className="employee-admin-signout" onClick={() => { logout(); navigate("/login"); }}><LogOut size={17} />Sign out</button>
@@ -428,6 +443,7 @@ const emptyEmployeeForm = {
 
 export function AdminEmployees() {
   const { employees, addEmployee, updateEmployee, setEmployeeStatus, resetEmployeePassword } = useStore();
+  const toast = useToast();
   const [form, setForm] = useState(emptyEmployeeForm);
   const [editing, setEditing] = useState("");
   const [search, setSearch] = useState("");
@@ -451,15 +467,18 @@ export function AdminEmployees() {
         const { password, ...details } = form;
         await updateEmployee(editing, details);
         setNotice("Employee details updated.");
+        toast.success("Employee details updated.");
       } else {
         if (!form.password || form.password.length < 8) throw new Error("Set a password with at least 8 characters.");
         await addEmployee(form);
         setNotice("Employee account created. The backend generated the employee ID; use the employee email to sign in.");
+        toast.success("Employee account created with a generated Employee ID.");
       }
       setForm(emptyEmployeeForm);
       setEditing("");
     } catch (formError) {
       setError(formError.message);
+      toast.error(formError.message);
     }
   };
   return (
@@ -505,7 +524,7 @@ export function AdminEmployees() {
             <td><b>{employee.code}</b><small>{employee.name}</small></td><td>{employee.phone || "—"}<small>{employee.email || "—"}</small></td><td>{employee.designation}<small>{employee.department || ""}</small></td><td>{employee.joiningDate}</td><td><span className={`employee-status ${employee.status === "Active" ? "is-active" : "is-disabled"}`}>{employee.status}</span><small>{(employee.permissions || []).length} permissions</small></td>
             <td><div className="employee-row-actions">
               <button onClick={() => { setEditing(employee.id); setForm({ ...emptyEmployeeForm, ...employee, password: "" }); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Edit</button>
-              <button onClick={async () => { try { await setEmployeeStatus(employee.id, employee.status === "Active" ? "Disabled" : "Active"); setNotice(`${employee.code} account status updated.`); setError(""); } catch (e) { setError(e.message); } }}>{employee.status === "Active" ? "Disable" : "Enable"}</button>
+              <button onClick={async () => { try { await setEmployeeStatus(employee.id, employee.status === "Active" ? "Disabled" : "Active"); setNotice(`${employee.code} account status updated.`); setError(""); toast.success(`${employee.code} account status updated.`); } catch (e) { setError(e.message); toast.error(e.message); } }}>{employee.status === "Active" ? "Disable" : "Enable"}</button>
               <button disabled title="Password reset endpoint is not included in the backend">Password reset unavailable</button>
             </div></td>
           </tr>)}</tbody>
@@ -548,7 +567,6 @@ export function AdminAttendanceAnalysis() {
   return (
     <AdminFeatureLayout title="Attendance analysis">
       <div className="employee-admin-intro"><div><span className="eyebrow">PRESENCE & WORKING HOURS</span><h1>Attendance</h1><p>Late arrivals are check-ins after 10:00; early logouts are check-outs before 18:00.</p></div><button className="button outline" onClick={() => makeCsv("hyni-attendance.csv", ["Employee code", "Employee name", "Date", "Check in", "Check out", "Working hours", "Status"], exportRows)}><Download size={15} /> Export CSV</button></div>
-      <p className="employee-error" role="status">Attendance data is unavailable because the supplied backend has no attendance model or endpoints. The figures below remain empty until attendance APIs are added.</p>
       {periodControls(period, setPeriod, start, setStart, end, setEnd, employees, employeeId, setEmployeeId)}
       <div className="employee-kpi-grid">
         {[["Present today", presentToday.length], ["Absent today", absentToday.length], ["Currently logged in", loggedIn.length], ["Late arrivals in range", lateRecords.length], ["Early logouts in range", earlyRecords.length]].map(([label, value]) => <div className="employee-admin-card employee-admin-kpi" key={label}><small>{label}</small><b>{value}</b></div>)}
@@ -691,9 +709,9 @@ export function AdminEmployeeReports() {
   return (
     <AdminFeatureLayout title="Employee reports">
       <div className="employee-admin-intro"><div><span className="eyebrow">DOWNLOADABLE REPORTS</span><h1>Reports</h1><p>Export CSV files that open in Excel or other spreadsheet applications.</p></div></div>
-      <p className="employee-error" role="status">Attendance and audit reports stay empty because the backend has no attendance or audit-log endpoints. Sales and performance reports use live backend records.</p>
+      <p className="employee-error" role="status">Audit-log records are not exposed by the backend. Attendance, sales and performance reports use live backend data.</p>
       <div className="employee-report-grid">{reports.map(([title, description, filename, headers, rows]) => <section className="employee-admin-card employee-report-card" key={title}><span className="eyebrow">CSV REPORT</span><h2>{title}</h2><p>{description}</p><small>{rows.length} records</small><button className="button dark" onClick={() => makeCsv(filename, headers, rows)}><Download size={15} /> Download CSV</button></section>)}</div>
-      <section className="employee-admin-card"><h2>Audit log</h2><p>Employee sign-ins, attendance, sales and account changes are not exposed by the backend as an audit-log endpoint. Only server-backed data shown elsewhere on this page is available.</p></section>
+      <section className="employee-admin-card"><h2>Audit log</h2><p>Audit-log records are not exposed by the backend. Only server-backed data shown elsewhere on this page is available.</p></section>
     </AdminFeatureLayout>
   );
 }

@@ -66,6 +66,7 @@ import {
   EmployeeDashboard,
 } from "./components/EmployeeFeatures";
 import { useStore } from "./context/StoreContext";
+import { useToast } from "./context/ToastContext";
 import { api } from "./config/api";
 import { categories as defaultCategories } from "./data/categories";
 import { BRAND, CHANNEL_URL } from "./config/brand";
@@ -346,16 +347,34 @@ function Shop({ mode = "all" }) {
     [sort, setSort] = useState("featured"),
     [max, setMax] = useState("5000");
   const q = params.get("q") || "";
+  const query = q.trim().toLowerCase();
+  const matchingCategoryNames = useMemo(
+    () =>
+      categoryOptions
+        .filter((c) => {
+          const text = `${c.name || ""} ${c.slug || ""}`.toLowerCase();
+          return text.includes(query) || (query && query.includes(String(c.name || "").toLowerCase()));
+        })
+        .map((c) => String(c.name || "").toLowerCase()),
+    [categoryOptions, query],
+  );
   const list = useMemo(
     () =>
       products
-        .filter(
-          (p) =>
+        .filter((p) => {
+          const searchable = [p.name, p.category, p.subcategory, p.code, p.slug]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return (
             (mode === "hot" ? p.hotSale : mode === "new" ? p.isNew : true) &&
             (category === "All" || p.category === category) &&
-            p.name.toLowerCase().includes(q.toLowerCase()) &&
-            salePrice(p) <= Number(max),
-        )
+            (!query ||
+              searchable.includes(query) ||
+              matchingCategoryNames.includes(String(p.category || "").toLowerCase())) &&
+            salePrice(p) <= Number(max)
+          );
+        })
         .sort((a, b) =>
           sort === "low"
             ? salePrice(a) - salePrice(b)
@@ -365,7 +384,7 @@ function Shop({ mode = "all" }) {
                 ? b.discount - a.discount
                 : 0,
         ),
-    [products, mode, category, q, sort, max],
+    [products, mode, category, query, sort, max, matchingCategoryNames],
   );
   const editorialHeading =
     mode === "hot"
@@ -455,7 +474,7 @@ function Shop({ mode = "all" }) {
         <div className="empty-state">
           <ShoppingBag size={35} />
           <h2>No pieces found</h2>
-          <p>Try another filter to find your style.</p>
+          <p>{query ? `Nothing matches “${q}”. Try another category or search term.` : "Try another filter to find your style."}</p>
           <button
             className="button dark"
             onClick={() => {
@@ -475,6 +494,7 @@ function Shop({ mode = "all" }) {
 function ProductDetail() {
   const { id } = useParams();
   const { products, addToCart, toggleWishlist, wishlist } = useStore();
+  const toast = useToast();
   const navigate = useNavigate();
   const p = products.find((x) => x.id === id);
   const [qty, setQty] = useState(1);
@@ -573,7 +593,13 @@ function ProductDetail() {
           </div>
           <div>
             <small>AVAILABILITY</small>
-            <b>{p.stock > 0 ? `${p.stock} pieces in stock` : "Sold out"}</b>
+            <b className={p.stock > 0 && p.stock <= 5 ? "stock-note low-stock" : p.stock <= 0 ? "stock-note out-of-stock" : ""}>
+              {p.stock > 5
+                ? "In stock"
+                : p.stock > 0
+                  ? `Only ${p.stock} ${p.stock === 1 ? "piece" : "pieces"} left!`
+                  : "Out of stock"}
+            </b>
           </div>
         </div>
         <div className="quantity-control">
@@ -589,11 +615,11 @@ function ProductDetail() {
           <button
             className="button dark"
             disabled={!p.stock || (p.sizes.length > 0 && !selectedSize) || (p.colors.length > 0 && !selectedColor)}
-            onClick={async () => { try { await addToCart(p, qty, selectedSize, selectedColor); } catch (e) { window.alert(e.message); if (!localStorage.getItem("hyni_token")) navigate("/login"); } }}
+            onClick={async () => { try { await addToCart(p, qty, selectedSize, selectedColor); toast.success(`${p.name} added to your bag.`); } catch (e) { toast.error(e.message); if (!localStorage.getItem("hyni_token")) navigate("/login"); } }}
           >
             Add to bag · {money(salePrice(p) * qty)} <ShoppingBag size={17} />
           </button>
-          <button className="button outline" onClick={async () => { try { await toggleWishlist(p); } catch (e) { window.alert(e.message); if (!localStorage.getItem("hyni_token")) navigate("/login"); } }}>
+          <button className="button outline" onClick={async () => { try { await toggleWishlist(p); } catch (e) { toast.error(e.message); if (!localStorage.getItem("hyni_token")) navigate("/login"); } }}>
             <Heart size={17} />{" "}
             {wishlist.some((x) => x.id === p.id) ? "Saved" : "Save piece"}
           </button>
@@ -614,6 +640,9 @@ function Cart({ wholesale = false }) {
   const { cart, updateQty, removeCart, subtotal } = useStore();
   const nav = useNavigate();
   const [preview, setPreview] = useState(null);
+  const cartSignature = cart
+    .map((item) => `${item.id}-${item.quantity}-${item.size || ""}-${item.color || ""}`)
+    .join("|");
   useEffect(() => {
     let active = true;
     if (!cart.length) { setPreview(null); return undefined; }
@@ -621,7 +650,7 @@ function Cart({ wholesale = false }) {
       .then((result) => { if (active) setPreview(result.checkout); })
       .catch(() => { if (active) setPreview(null); });
     return () => { active = false; };
-  }, [cart]);
+  }, [cartSignature]);
   const pricing = preview?.summary;
   const minimum = 5000,
     remaining = Math.max(0, minimum - (pricing?.subtotal ?? subtotal));
@@ -685,6 +714,8 @@ function Cart({ wholesale = false }) {
                     </button>
                     <span>{p.quantity}</span>
                     <button
+                      disabled={p.quantity >= p.stock}
+                      title={p.quantity >= p.stock ? "Maximum available quantity reached" : "Increase quantity"}
                       onClick={() =>
                         updateQty(p.id, p.quantity + 1, p.size, p.color)
                       }
@@ -692,6 +723,9 @@ function Cart({ wholesale = false }) {
                       <Plus size={13} />
                     </button>
                   </div>
+                  {p.stock <= 5 && p.stock > 0 && (
+                    <small className="stock-note low-stock">Only {p.stock} {p.stock === 1 ? "piece" : "pieces"} left!</small>
+                  )}
                 </div>
                 <div className="cart-item-end">
                   <b>{money(salePrice(p) * p.quantity)}</b>
@@ -716,6 +750,12 @@ function Cart({ wholesale = false }) {
               <div>
                 <span>Packing</span>
                 <b>{money(pricing.packingCost)}</b>
+              </div>
+            )}
+            {pricing && (
+              <div>
+                <span>Total weight</span>
+                <b>{pricing.totalWeightKg} kg ({pricing.chargeableWeightKg} kg chargeable)</b>
               </div>
             )}
             <div>
@@ -807,7 +847,7 @@ function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [accountRole, setAccountRole] = useState("customer");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const nav = useNavigate();
   return (
@@ -833,61 +873,64 @@ function Login() {
           setError("");
           setSubmitting(true);
           try {
-            const user = await authenticateUser(identifier, password, accountRole);
+            const user = await authenticateUser(identifier, password);
             nav(user.role === "Admin" ? "/admin" : user.role === "Employee" ? "/employee/dashboard" : user.role === "Wholesale Customer" ? "/wholesale" : "/customer");
           } catch (error) {
             setError(error.message || "Email or password is incorrect, or this account is unavailable.");
           } finally { setSubmitting(false); }
         }}
       >
-        <Link to="/" className="back-link">
-          ← Back to Hyni
+        <Link to="/" className="login-logo" aria-label="Hyni Fashion Studio home">
+          <img src="/images/hyni-logo.png" alt="Hyni Fashion Studio" />
         </Link>
-        <span className="eyebrow">YOUR H Y N I SPACE</span>
         <h1>Come on in.</h1>
-        <p>Sign in with the email or account ID provided for your Hyni account.</p>
-        <label htmlFor="accountRole">Account type</label>
-        <select id="accountRole" value={accountRole} onChange={(e) => setAccountRole(e.target.value)}>
-          <option value="customer">Customer</option>
-          <option value="wholesale">Wholesale customer</option>
-          <option value="employee">Employee</option>
-          <option value="admin">Admin</option>
-        </select>
-        <label htmlFor="identifier">Registered email address</label>
+        <label htmlFor="identifier">Email</label>
         <input
           id="identifier"
-          type="text"
-          placeholder="Your registered email address"
+          type="email"
+          placeholder="Your email address"
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           autoComplete="username"
           required
         />
         <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
+        <div className="password-field">
+          <input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
+        <div className="login-links">
+          <Link to="/contact">Forgot password?</Link>
+        </div>
         {error && <p className="employee-error" role="alert">{error}</p>}
         <button className="button dark full" disabled={submitting}>
           {submitting ? "Signing in…" : "Sign in"} <ArrowRight size={16} />
         </button>
-        <small>Use the email address and password created in the backend. Employee codes are not accepted by API login.</small>
-        <small>Password reset is unavailable because the backend does not expose a reset-password endpoint. Contact the studio administrator if you need help signing in.</small>
-        <small>New to Hyni? <Link to="/register">Create a customer account</Link></small>
+        <small className="login-register">New to Hyni? <Link to="/register">Create a customer account</Link></small>
       </form>
     </main>
   );
 }
 function Checkout({ wholesale = false }) {
   const { cart, subtotal, user, refreshCart, refreshOrders, refreshAddresses, addresses } = useStore();
+  const toast = useToast();
   const [done, setDone] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [submittingProof, setSubmittingProof] = useState(false);
   const [error, setError] = useState("");
   const [proof, setProof] = useState(null);
   const [utrNumber, setUtrNumber] = useState("");
@@ -897,6 +940,9 @@ function Checkout({ wholesale = false }) {
   const [previewError, setPreviewError] = useState("");
   const [support, setSupport] = useState(null);
   const nav = useNavigate();
+  const cartSignature = cart
+    .map((item) => `${item.id}-${item.quantity}-${item.size || ""}-${item.color || ""}`)
+    .join("|");
 
   useEffect(() => {
     let active = true;
@@ -907,14 +953,19 @@ function Checkout({ wholesale = false }) {
         setAddressId(list.find((a) => a.isDefault)?._id || list[0]?._id || "new");
       })
       .catch(() => { if (active) setAddressId("new"); });
-    api.checkoutPreview()
-      .then((r) => { if (active) { setPreview(r.checkout); setPreviewError(""); } })
-      .catch((e) => { if (active) setPreviewError(e.message); });
     api.paymentSupport()
       .then((r) => { if (active) setSupport(r.support); })
       .catch(() => {});
     return () => { active = false; };
-  }, [cart.length]);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    api.checkoutPreview()
+      .then((r) => { if (active) { setPreview(r.checkout); setPreviewError(""); } })
+      .catch((e) => { if (active) setPreviewError(e.message); });
+    return () => { active = false; };
+  }, [cartSignature]);
 
   const pricing = preview?.summary;
   const minimum = wholesale && ((pricing?.subtotal ?? subtotal) < 5000);
@@ -926,10 +977,28 @@ function Checkout({ wholesale = false }) {
       <h1>Your order is almost ready.</h1>
       <p>Order <b>{done.orderId}</b> was created. Complete the UPI payment and submit its screenshot for verification.</p>
       {done.payment?.qrCode && <div className="payment-qr"><img src={done.payment.qrCode} alt="UPI payment QR code" style={{ width: 240, maxWidth: "100%" }} /><p>Pay {money(done.payment.amount)} to {done.payment.receiverUpiId || done.payment.receiverName}</p></div>}
-      <form className="checkout-form" onSubmit={async (e) => { e.preventDefault(); if (!proof || !utrNumber.trim()) return; setProofMessage(""); try { await api.submitPayment(done.orderId, proof, utrNumber.trim()); setProofMessage("Payment screenshot submitted successfully. The admin will verify it."); } catch (err) { setProofMessage(err.message); } }}>
+      <form className="checkout-form" onSubmit={async (e) => {
+        e.preventDefault();
+        if (!proof || utrNumber.trim().length < 6 || submittingProof) return;
+        setProofMessage("");
+        setSubmittingProof(true);
+        try {
+          await api.submitPayment(done.orderId, proof, utrNumber.trim());
+          toast.success("Payment proof submitted. Taking you to your orders…");
+          await refreshOrders();
+          nav(wholesale ? "/wholesale/orders" : "/customer/orders");
+        } catch (err) {
+          setProofMessage(err.message);
+          toast.error(err.message);
+        } finally {
+          setSubmittingProof(false);
+        }
+      }}>
         <label>UPI transaction reference / UTR<input value={utrNumber} onChange={(e) => setUtrNumber(e.target.value)} minLength={6} maxLength={22} required placeholder="Enter UTR number" /></label>
         <label>Upload payment screenshot<input type="file" accept="image/*" required onChange={(e) => setProof(e.target.files?.[0] || null)} /></label>
-        <button className="button dark" disabled={!proof || utrNumber.trim().length < 6}>Submit payment proof</button>
+        <button className="button dark" disabled={!proof || utrNumber.trim().length < 6 || submittingProof}>
+          {submittingProof ? "Submitting…" : "Submit payment proof"}
+        </button>
         {proofMessage && <p role="status">{proofMessage}</p>}
         {support?.mobile && <p className="checkout-note">Paid but forgot the screenshot? Contact our team on <a href={`tel:${support.mobile}`}>{support.mobile}</a> with order {done.orderId}.</p>}
       </form>
@@ -1064,6 +1133,7 @@ function Register() {
   );
 }
 function TrackOrder() {
+  const toast = useToast();
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
@@ -1100,11 +1170,13 @@ function TrackOrder() {
     try {
       await api.submitPayment(orderId, proof, utrNumber.trim());
       setPaymentMessage("Payment screenshot submitted. The admin will verify it shortly.");
+      toast.success("Payment screenshot submitted successfully.");
       setProof(null);
       setUtrNumber("");
       await load();
     } catch (submitError) {
       setPaymentMessage(submitError.message);
+      toast.error(submitError.message);
     }
   };
 
@@ -1156,6 +1228,7 @@ function TrackOrder() {
 }
 function Profile() {
   const { user, orders, logout, addresses, refreshAddresses, updateProfile } = useStore();
+  const toast = useToast();
   const [name, setName] = useState(user?.name || "");
   const [mobile, setMobile] = useState(user?.mobile || "");
   const [accountMessage, setAccountMessage] = useState("");
@@ -1194,10 +1267,21 @@ function Profile() {
     });
   };
   const removeAddress = async (address) => {
-    if (!window.confirm(`Delete the ${address.label} address?`)) return;
+    const ok = await toast.confirm({
+      title: "Delete address",
+      message: `Delete the ${address.label} address?`,
+      confirmText: "Delete address",
+      danger: true,
+    });
+    if (!ok) return;
     setAddressError(""); setAddressMessage("");
-    try { await api.deleteAddress(address._id); await refreshAddresses(); setAddressMessage("Address deleted."); }
-    catch (error) { setAddressError(error.message); }
+    try {
+      await api.deleteAddress(address._id);
+      await refreshAddresses();
+      setAddressMessage("Address deleted.");
+      toast.success("Address deleted.");
+    }
+    catch (error) { setAddressError(error.message); toast.error(error.message); }
   };
   const makeDefault = async (address) => {
     setAddressError(""); setAddressMessage("");
@@ -1444,6 +1528,7 @@ function AdminDashboard() {
     ["Total revenue", money(summary?.sales?.totalRevenue || 0), IndianRupee],
     ["Orders", summary?.orders?.total ?? orders.length, ClipboardList],
     ["Products", summary?.products?.total ?? products.length, ShoppingBag],
+    ["Total pieces", summary?.inventory?.totalPieces ?? "—", Boxes],
     ["Low stock", low, Boxes],
     ["Total employees", summary?.employees?.total ?? employees.length, Users],
     ["Employee sales", money(employeeSales.reduce((sum, sale) => sum + sale.totalAmount, 0)), IndianRupee],
@@ -1580,6 +1665,8 @@ function AdminDashboard() {
     </AdminLayout>
   );
 }
+const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL"];
+
 const emptyProductForm = {
   name: "",
   categoryId: "",
@@ -1593,7 +1680,7 @@ const emptyProductForm = {
   deliveryCost: "0",
   packingCost: "0",
   fabric: "",
-  sizes: "S, M, L, XL",
+  sizes: ["S", "M", "L", "XL"],
   colors: "",
   status: "Active",
   isNew: true,
@@ -1602,6 +1689,7 @@ const emptyProductForm = {
 };
 function AdminProducts() {
   const { products, refreshProducts, refreshCategories } = useStore();
+  const toast = useToast();
   const [adminCategories, setAdminCategories] = useState([]);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
@@ -1662,9 +1750,7 @@ function AdminProducts() {
       packingCost: Number(form.packingCost) || 0,
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
       fabric: form.fabric.trim(),
-      sizes: JSON.stringify(
-        form.sizes.split(",").map((s) => s.trim()).filter(Boolean),
-      ),
+      sizes: JSON.stringify(Array.isArray(form.sizes) ? form.sizes : []),
       colors: JSON.stringify(
         form.colors.split(",").map((s) => s.trim()).filter(Boolean),
       ),
@@ -1697,9 +1783,11 @@ function AdminProducts() {
       }
       await Promise.all([refreshProducts(), refreshCategories(), loadCategories()]);
       setNotice(editing ? "Product updated." : "Product added to the catalogue.");
+      toast.success(editing ? "Product updated." : "Product added to the catalogue.");
       resetForm();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -1723,7 +1811,7 @@ function AdminProducts() {
       deliveryCost: String(p.deliveryCost ?? 0),
       packingCost: String(p.packingCost ?? 0),
       fabric: p.fabric || "",
-      sizes: (p.sizes || []).join(", "),
+      sizes: Array.isArray(p.sizes) ? p.sizes : [],
       colors: (p.colors || []).join(", "),
       status: p.status || "Active",
       isNew: Boolean(p.isNew),
@@ -1731,17 +1819,25 @@ function AdminProducts() {
       featured: Boolean(p.featured),
     });
   };
-  const remove = (p) => {
-    if (!confirm(`Delete ${p.name} from the catalogue?`)) return;
+  const remove = async (p) => {
+    const ok = await toast.confirm({
+      title: "Delete product",
+      message: `Delete ${p.name} from the catalogue?`,
+      confirmText: "Delete product",
+      danger: true,
+    });
+    if (!ok) return;
     setError("");
     setNotice("");
-    api
-      .deleteProduct(p.id)
-      .then(async () => {
-        await refreshProducts();
-        setNotice(`${p.name} deleted.`);
-      })
-      .catch((err) => setError(err.message));
+    try {
+      await api.deleteProduct(p.id);
+      await refreshProducts();
+      setNotice(`${p.name} deleted.`);
+      toast.success(`${p.name} deleted.`);
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message);
+    }
   };
   return (
     <AdminLayout>
@@ -1893,13 +1989,33 @@ function AdminProducts() {
                   placeholder="e.g. Cotton blend"
                 />
               </label>
-              <label>
-                Sizes (comma separated)
-                <input
-                  value={form.sizes}
-                  onChange={(e) => setForm({ ...form, sizes: e.target.value })}
-                  placeholder="S, M, L, XL"
-                />
+              <label className="span-2">
+                Sizes
+                <div className="size-selector size-selector-inline" role="group" aria-label="Product sizes">
+                  <div>
+                    {SIZE_OPTIONS.map((size) => {
+                      const selected = form.sizes.includes(size);
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          className={selected ? "selected" : ""}
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              sizes: selected
+                                ? form.sizes.filter((item) => item !== size)
+                                : [...form.sizes, size],
+                            })
+                          }
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </label>
               <label>
                 Colours (comma separated)

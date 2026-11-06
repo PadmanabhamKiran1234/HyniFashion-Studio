@@ -50,7 +50,16 @@ router.post(
   registerWholesale
 );
 
-// FOUR LOGIN ROUTES
+// COMMON LOGIN
+// The role is identified from the registered account, never from the request.
+router.post(
+  '/login',
+  loginLimiter,
+  validateLogin,
+  login
+);
+
+// FOUR LEGACY ROLE-SPECIFIC LOGIN ROUTES (kept for backward compatibility)
 for (const role of [
   'admin',
   'customer',

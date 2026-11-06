@@ -9,7 +9,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed:admin": "node src/seeders/createAdmin.js",
-    "seed:categories": "node src/seeders/seedCategories.js"
+    "seed:categories": "node src/seeders/seedCategories.js",
+    "backfill:employee-ids": "node src/seeders/backfillEmployeeIds.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -36,7 +36,7 @@ const saleLinesFromSales = (sales = []) => sales.flatMap((sale) => (sale.items |
   id: `${sale.saleId}-${index + 1}`,
   saleId: sale.saleId,
   employeeId: sale.soldBy?._id || sale.soldBy || '',
-  employeeCode: sale.soldBy?.userId || sale.soldBy?.name || '—',
+  employeeCode: sale.soldBy?.employeeId || sale.soldBy?.userId || sale.soldBy?.name || '—',
   employeeName: sale.soldBy?.name || '—',
   productId: item.productId?._id || item.productId || '',
   productCode: item.productCode || '',
@@ -61,7 +61,7 @@ export function StoreProvider({ children }) {
   const [orders, setOrders] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [employeeProfile, setEmployeeProfile] = useState(null);
-  const [attendance] = useState([]);
+  const [attendance, setAttendance] = useState([]);
   const [employeeSales, setEmployeeSales] = useState([]);
   const [auditLog] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +107,20 @@ export function StoreProvider({ children }) {
     if (!getToken() || user?.apiRole !== 'employee') { setEmployeeProfile(null); return; }
     const result = await api.myEmployeeProfile(); setEmployeeProfile(result.employee || null);
   }, [user]);
+  const refreshAttendance = useCallback(async () => {
+    if (!getToken()) { setAttendance([]); return; }
+    if (user?.apiRole === 'admin') {
+      const result = await api.adminAttendance();
+      setAttendance(result.attendance || []);
+      return;
+    }
+    if (user?.apiRole === 'employee') {
+      const result = await api.myAttendance();
+      setAttendance(result.history || []);
+      return;
+    }
+    setAttendance([]);
+  }, [user]);
 
   useEffect(() => {
     api.products()
@@ -128,6 +142,7 @@ export function StoreProvider({ children }) {
           role: normalizeRole(current.role),
           apiRole: current.role,
           employeeId: current.role === 'employee' ? current.id : undefined,
+          employeeCode: current.role === 'employee' ? (current.employeeId || current.userId) : undefined,
         } : old);
       })
       .catch((error) => {
@@ -147,7 +162,7 @@ export function StoreProvider({ children }) {
     localStorage.setItem('hyni_user', JSON.stringify(user));
     if (!user || !getToken()) {
       setCart([]); setWishlist([]); setOrders([]); setEmployees([]); setAddresses([]);
-      setEmployeeSales([]); setEmployeeProfile(null);
+      setEmployeeSales([]); setEmployeeProfile(null); setAttendance([]);
       if (user && !getToken()) setUser(null);
       return;
     }
@@ -155,37 +170,35 @@ export function StoreProvider({ children }) {
       loadEmployees().catch((e) => setApiError(e.message));
       refreshProducts().catch((e) => setApiError(e.message));
       refreshEmployeeSales().catch((e) => setApiError(e.message));
+      refreshAttendance().catch((e) => setApiError(e.message));
     }
     if (user.apiRole === 'employee') {
-      setEmployees([{ id: user.id, code: user.userId, name: user.name, email: user.email, status: 'Active', designation: user.employeeDetails?.designation || 'Employee', permissions: user.permissions || [] }]);
+      setEmployees([{ id: user.id, code: user.employeeCode || user.employeeId || user.userId, name: user.name, email: user.email, status: 'Active', designation: user.employeeDetails?.designation || 'Employee', permissions: user.permissions || [] }]);
       refreshEmployeeSales().catch((e) => setApiError(e.message));
       refreshEmployeeProfile().catch((e) => setApiError(e.message));
+      refreshAttendance().catch((e) => setApiError(e.message));
     }
     refreshCart().catch((e) => setApiError(e.message));
     refreshWishlist().catch((e) => { if (e.status !== 403) setApiError(e.message); });
     refreshOrders().catch((e) => setApiError(e.message));
     refreshAddresses().catch((e) => { if (e.status !== 403) setApiError(e.message); });
-  }, [user, refreshCart, refreshWishlist, refreshOrders, refreshAddresses, refreshEmployeeSales, refreshEmployeeProfile, refreshProducts]);
+  }, [user, refreshCart, refreshWishlist, refreshOrders, refreshAddresses, refreshEmployeeSales, refreshEmployeeProfile, refreshProducts, refreshAttendance]);
 
-  const authenticateUser = async (identifier, password, roleHint) => {
+  const authenticateUser = async (identifier, password) => {
     const email = String(identifier).trim().toLowerCase();
-    const roles = roleHint ? [roleHint] : ['customer', 'wholesale', 'employee', 'admin'];
-    let lastError;
-    for (const role of roles) {
-      try {
-        const result = await api.login(role, email, password);
-        localStorage.setItem('hyni_token', result.token);
-        const nextUser = {
-          ...result.user,
-          id: result.user.id,
-          role: normalizeRole(result.user.role),
-          apiRole: result.user.role,
-          employeeId: result.user.role === 'employee' ? result.user.id : undefined,
-        };
-        setUser(nextUser); setApiError(''); return nextUser;
-      } catch (error) { lastError = error; if (![401, 403].includes(error.status)) throw error; }
-    }
-    throw lastError || new Error('Invalid email or password.');
+    const result = await api.login(email, password);
+    localStorage.setItem('hyni_token', result.token);
+    const nextUser = {
+      ...result.user,
+      id: result.user.id,
+      role: normalizeRole(result.user.role),
+      apiRole: result.user.role,
+      employeeId: result.user.role === 'employee' ? result.user.id : undefined,
+      employeeCode: result.user.role === 'employee' ? (result.user.employeeId || result.user.userId) : undefined,
+    };
+    setUser(nextUser);
+    setApiError('');
+    return nextUser;
   };
   const logout = () => {
     localStorage.removeItem('hyni_token');
@@ -226,8 +239,16 @@ export function StoreProvider({ children }) {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + Number(item.customerPrice ?? ((item.sellingPrice || item.price) * (1 - item.discount / 100))) * item.quantity, 0);
 
-  const checkIn = async () => { throw new Error('Attendance check-in is not available because the backend does not expose attendance endpoints.'); };
-  const checkOut = async () => { throw new Error('Attendance check-out is not available because the backend does not expose attendance endpoints.'); };
+  const checkIn = async () => {
+    const result = await api.checkIn();
+    await refreshAttendance();
+    return result.attendance;
+  };
+  const checkOut = async () => {
+    const result = await api.checkOut();
+    await refreshAttendance();
+    return result.attendance;
+  };
   const recordEmployeeSale = async (productId, quantity, options = {}) => {
     const product = products.find((p) => p.id === productId);
     if (!product?.mongoId) throw new Error('This product is missing its database ID. Refresh the product list.');
@@ -262,7 +283,7 @@ export function StoreProvider({ children }) {
     setEmployees((r.employees || []).map((e) => ({
       ...e,
       id: e._id,
-      code: e.userId || e._id,
+      code: e.employeeId || e.userId || e._id,
       phone: e.mobile,
       designation: e.employeeDetails?.designation || 'Employee',
       department: e.employeeDetails?.department || '',
@@ -296,7 +317,8 @@ export function StoreProvider({ children }) {
     removeCart, toggleWishlist, clearCart, updateProfile, cartCount, subtotal, loading,
     apiError, refreshProducts, refreshCategories, refreshCart, refreshWishlist,
     refreshOrders, refreshAddresses, refreshEmployeeSales, refreshEmployeeProfile,
-  }), [products, categories, cart, wishlist, addresses, user, orders, employees, employeeProfile, employeeSales, cartCount, subtotal, loading, apiError, refreshProducts, refreshCategories, refreshCart, refreshWishlist, refreshOrders, refreshAddresses, refreshEmployeeSales, refreshEmployeeProfile]);
+    refreshAttendance,
+  }), [products, categories, cart, wishlist, addresses, user, orders, employees, employeeProfile, employeeSales, attendance, cartCount, subtotal, loading, apiError, refreshProducts, refreshCategories, refreshCart, refreshWishlist, refreshOrders, refreshAddresses, refreshEmployeeSales, refreshEmployeeProfile, refreshAttendance]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

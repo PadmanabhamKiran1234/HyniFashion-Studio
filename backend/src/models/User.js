@@ -9,6 +9,16 @@ const userSchema = new mongoose.Schema(
       index: true
     },
 
+    // Human-readable employee number (for example "EMP 001").
+    // Optional for non-employee accounts.
+    employeeId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      index: true
+    },
+
     name: {
       type: String,
       required: true,
@@ -119,6 +129,7 @@ userSchema.methods.toSafeObject = function () {
   return {
     id: this._id,
     userId: this.userId,
+    employeeId: this.employeeId || '',
     name: this.name,
     email: this.email,
     mobile: this.mobile,

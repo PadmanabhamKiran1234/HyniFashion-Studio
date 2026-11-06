@@ -40,7 +40,7 @@ export const api = {
   health: () => apiRequest('/health'),
 
   // Authentication
-  login: (role, email, password) => apiRequest(`/auth/${role}/login`, { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (email, password) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   register: (data) => apiRequest('/auth/customer/register', { method: 'POST', body: JSON.stringify(data) }),
   registerWholesale: (data) => apiRequest('/auth/wholesale/register', { method: 'POST', body: JSON.stringify(data) }),
   me: () => apiRequest('/auth/me'),
@@ -141,4 +141,13 @@ export const api = {
   employeePermissions: () => apiRequest('/employees/admin/permissions'),
   myEmployeeProfile: () => apiRequest('/employees/me'),
   updateMyEmployeeProfile: (data) => apiRequest('/employees/me', { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Attendance
+  checkIn: () => apiRequest('/attendance/check-in', { method: 'POST' }),
+  checkOut: () => apiRequest('/attendance/check-out', { method: 'POST' }),
+  myAttendance: (params) => apiRequest(`/attendance/my-attendance${query(params)}`),
+  adminAttendance: (params) => apiRequest(`/attendance/admin${query({ limit: 100, ...params })}`),
+
+  // Newsletter
+  subscribeNewsletter: (email) => apiRequest('/newsletter/subscribe', { method: 'POST', body: JSON.stringify({ email, source: 'footer' }) }),
 };

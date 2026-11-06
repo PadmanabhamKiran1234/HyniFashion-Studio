@@ -28,6 +28,8 @@ import employeeRoutes from './routes/employee.routes.js';
 import offlineSaleRoutes from './routes/offlineSale.routes.js';
 import chatbotRoutes from './routes/chatbot.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
+import attendanceRoutes from './routes/attendance.routes.js';
+import newsletterRoutes from './routes/newsletter.routes.js';
 const app = express();
 
 app.disable('x-powered-by');
@@ -99,6 +101,8 @@ app.use('/api/offline-sales', offlineSaleRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/admin/dashboard', dashboardRoutes);
 app.use('/api/admin/customers', adminCustomerRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 app.use(notFound);
 
 app.use(errorHandler);

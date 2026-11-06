@@ -4,4 +4,15 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './styles.css';
 import { StoreProvider } from './context/StoreContext';
-createRoot(document.getElementById('root')).render(<React.StrictMode><BrowserRouter><StoreProvider><App /></StoreProvider></BrowserRouter></React.StrictMode>);
+import { ToastProvider } from './context/ToastContext';
+createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <StoreProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </StoreProvider>
+    </BrowserRouter>
+  </React.StrictMode>
+);

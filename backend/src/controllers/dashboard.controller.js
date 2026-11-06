@@ -26,10 +26,11 @@ export const getDashboardSummary = async (req, res) => {
       lowStockProducts,
       onlineRevenue,
       offlineRevenue,
-      offlineSalesCount
+      offlineSalesCount,
+      totalPiecesResult
     ] = await Promise.all([
       Product.countDocuments(),
-      Product.countDocuments({ status: 'active' }),
+      Product.countDocuments({ status: 'Active' }),
       Category.countDocuments(),
 
       User.countDocuments({ role: 'customer' }),
@@ -76,7 +77,7 @@ export const getDashboardSummary = async (req, res) => {
       ]),
 
       Product.countDocuments({
-        status: 'active',
+        status: 'Active',
         $expr: {
           $lte: ['$stock', '$lowStockThreshold']
         }
@@ -108,7 +109,24 @@ export const getDashboardSummary = async (req, res) => {
         }
       ]),
 
-      OfflineSale.countDocuments({ status: 'completed' })
+      OfflineSale.countDocuments({ status: 'completed' }),
+
+      // Total sellable pieces: available inventory units belonging to active
+      // products only. Reserved/sold units are never counted.
+      Inventory.aggregate([
+        { $match: { status: 'available' } },
+        {
+          $lookup: {
+            from: 'products',
+            localField: 'productId',
+            foreignField: '_id',
+            as: 'product'
+          }
+        },
+        { $unwind: '$product' },
+        { $match: { 'product.status': 'Active' } },
+        { $count: 'total' }
+      ])
     ]);
 
     const statusCounts = {};
@@ -123,6 +141,7 @@ export const getDashboardSummary = async (req, res) => {
 
     const onlineSales = onlineRevenue[0]?.total || 0;
     const offlineSales = offlineRevenue[0]?.total || 0;
+    const totalPieces = totalPiecesResult[0]?.total || 0;
 
     return res.status(200).json({
       success: true,
@@ -169,7 +188,8 @@ export const getDashboardSummary = async (req, res) => {
           reserved: inventoryCounts.reserved || 0,
           sold: inventoryCounts.sold || 0,
           removed: inventoryCounts.removed || 0,
-          lowStockProducts
+          lowStockProducts,
+          totalPieces
         },
 
         sales: {
