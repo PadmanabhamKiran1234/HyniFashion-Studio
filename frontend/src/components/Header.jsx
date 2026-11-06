@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   Flame,
@@ -27,7 +27,20 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const { cartCount, wishlist, user } = useStore();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
+  const profileTo = user?.role === "Employee"
+    ? "/employee/dashboard"
+    : user?.role === "Admin"
+      ? "/admin"
+      : user
+        ? "/profile"
+        : "/login";
+  const isNavigationActive = (to) => {
+    if (to === "/") return pathname === "/";
+    if (to === "/shop#categories") return pathname === "/shop" || pathname.startsWith("/category/");
+    return pathname === to || pathname.startsWith(`${to}/`);
+  };
 
   const submit = (event) => {
     event.preventDefault();
@@ -62,7 +75,13 @@ export default function Header() {
         )}
         <nav className={open ? "nav open" : "nav"} aria-label="Main navigation">
           {navigation.map(({ label, to, Icon }) => (
-            <Link key={label} onClick={() => setOpen(false)} to={to}>
+            <Link
+              key={label}
+              to={to}
+              className={isNavigationActive(to) ? "active" : undefined}
+              aria-current={isNavigationActive(to) ? "page" : undefined}
+              onClick={() => setOpen(false)}
+            >
               {Icon && <Icon className="nav-icon" size={15} aria-hidden="true" />}
               <span>{label}</span>
             </Link>
@@ -80,18 +99,29 @@ export default function Header() {
               <Search size={17} />
             </button>
           </form>
-          <Link className="icon-link" to="/wishlist" aria-label="Wishlist">
+          <Link
+            className={pathname === "/wishlist" ? "icon-link active" : "icon-link"}
+            to="/wishlist"
+            aria-label="Wishlist"
+            aria-current={pathname === "/wishlist" ? "page" : undefined}
+          >
             <Heart size={19} />
             {wishlist.length > 0 && <i>{wishlist.length}</i>}
           </Link>
-          <Link className="icon-link" to="/cart" aria-label="Cart">
+          <Link
+            className={pathname === "/cart" ? "icon-link active" : "icon-link"}
+            to="/cart"
+            aria-label="Cart"
+            aria-current={pathname === "/cart" ? "page" : undefined}
+          >
             <ShoppingBag size={19} />
             {cartCount > 0 && <i>{cartCount}</i>}
           </Link>
           <Link
-            className="icon-link profile-icon"
-            to={user?.role === "Employee" ? "/employee/dashboard" : user?.role === "Admin" ? "/admin" : user ? "/profile" : "/login"}
+            to={profileTo}
             aria-label="Profile"
+            className={`icon-link profile-icon${pathname === profileTo ? " active" : ""}`}
+            aria-current={pathname === profileTo ? "page" : undefined}
           >
             <UserRound size={19} />
           </Link>

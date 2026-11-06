@@ -32,6 +32,8 @@ import {
   Tag,
   Boxes,
   ClipboardList,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
@@ -1090,6 +1092,7 @@ function Checkout({ wholesale = false }) {
 function Register() {
   const [form, setForm] = useState({ name: "", email: "", mobile: "", password: "" });
   const [accountType, setAccountType] = useState("customer");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1100,7 +1103,7 @@ function Register() {
         <img src={fashionImages.login} alt="Hyni boutique fashion" />
         <div><span className="eyebrow">WELCOME TO OUR WORLD</span><h2>Make room for<br /><em>something lovely.</em></h2></div>
       </div>
-      <form className="login-form" onSubmit={async (e) => {
+      <form className="login-form register-form" onSubmit={async (e) => {
         e.preventDefault(); setBusy(true); setError(""); setMessage("");
         try {
           const result = accountType === "wholesale" ? await api.registerWholesale(form) : await api.register(form);
@@ -1116,21 +1119,37 @@ function Register() {
         <Link to="/" className="back-link">← Back to Hyni</Link>
         <span className="eyebrow">YOUR H Y N I SPACE</span>
         <h1>Create account.</h1>
-        <label>Account type
-          <select value={accountType} onChange={(e) => setAccountType(e.target.value)}>
+        <p className="register-intro">A few details to make your next visit feel like yours.</p>
+        <div className="register-fields">
+          <label className="register-account-type" htmlFor="register-account-type">Account type
+          <select id="register-account-type" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
             <option value="customer">Customer</option>
             <option value="wholesale">Wholesale customer</option>
           </select>
-        </label>
-        <label>Full name<input required minLength={2} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
-        <label>Email<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label>
-        <label>Mobile number<input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} pattern="[0-9]{10,15}" placeholder="10-digit mobile" /></label>
-        <label>Password<input required type="password" minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></label>
+          </label>
+          <label htmlFor="register-name">Full name
+            <input id="register-name" required minLength={2} autoComplete="name" placeholder="How should we address you?" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+          </label>
+          <label htmlFor="register-email">Email
+            <input id="register-email" required type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+          </label>
+          <label htmlFor="register-mobile"><span>Mobile number <span className="register-optional">Optional</span></span>
+            <input id="register-mobile" type="tel" inputMode="numeric" autoComplete="tel" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} pattern="[0-9]{10,15}" placeholder="10-digit mobile" />
+          </label>
+          <label htmlFor="register-password">Password
+            <span className="password-field register-password-field">
+              <input id="register-password" required type={showPassword ? "text" : "password"} minLength={8} autoComplete="new-password" placeholder="At least 8 characters" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
+              <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </span>
+          </label>
+        </div>
         {accountType === "wholesale" && <p className="checkout-note">Wholesale accounts are reviewed by the studio admin before login. The minimum wholesale order is ₹5,000.</p>}
         {error && <p className="employee-error" role="alert">{error}</p>}
-        {message && <p role="status">{message}</p>}
+        {message && <p className="register-feedback" role="status">{message}</p>}
         <button className="button dark full" disabled={busy}>{busy ? "Creating…" : "Create account"}<ArrowRight size={16} /></button>
-        <small>Already have an account? <Link to="/login">Sign in</Link></small>
+        <small className="register-signin">Already have an account? <Link to="/login">Sign in</Link></small>
       </form>
     </main>
   );
