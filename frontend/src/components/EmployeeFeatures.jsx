@@ -1,22 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   CalendarDays,
-  ChartNoAxesCombined,
   ClipboardCheck,
   Download,
-  LayoutDashboard,
   LogOut,
   Package,
   Plus,
   UserRound,
-  Users,
 } from "lucide-react";
 import { money } from "./ProductCard";
+import AdminLayout from "./AdminLayout";
 import { api } from "../config/api";
 import { useStore } from "../context/StoreContext";
 import { useToast } from "../context/ToastContext";
+import { statusPillClass } from "../utils/status";
 
 const localDate = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -254,7 +253,7 @@ export function EmployeeDashboard() {
             <div><small>Check in</small><b>{timeLabel(todaysAttendance?.checkInAt)}</b></div>
             <div><small>Check out</small><b>{timeLabel(todaysAttendance?.checkOutAt)}</b></div>
             <div><small>Working hours</small><b>{todaysAttendance ? hoursLabel(hoursFor(todaysAttendance)) : "—"}</b></div>
-            <div><small>Status</small><b>{todaysAttendance?.checkOutAt ? "Completed" : todaysAttendance ? "On shift" : "Not checked in"}</b></div>
+            <div><small>Status</small><b><span className={statusPillClass(todaysAttendance?.checkOutAt ? "Completed" : todaysAttendance ? "On shift" : "Not checked in")}>{todaysAttendance?.checkOutAt ? "Completed" : todaysAttendance ? "On shift" : "Not checked in"}</span></b></div>
           </div>
           <div className="employee-action-row">
             <button className="button dark" disabled={Boolean(todaysAttendance)} onClick={() => notifyAction(checkIn)}>
@@ -389,7 +388,7 @@ export function EmployeeDashboard() {
           <div className="employee-section-heading"><div><span className="eyebrow">MY ATTENDANCE</span><h2>Attendance history</h2></div><ClipboardCheck /></div>
           <div className="employee-table-wrap">
             <table><thead><tr><th>Date</th><th>Check in</th><th>Check out</th><th>Working hours</th><th>Status</th></tr></thead>
-              <tbody>{myAttendance.slice(0, 15).map((record) => <tr key={record.id}><td>{record.date}</td><td>{timeLabel(record.checkInAt)}</td><td>{timeLabel(record.checkOutAt)}</td><td>{hoursLabel(hoursFor(record))}</td><td>{record.checkOutAt ? "Completed" : "On shift"}</td></tr>)}</tbody>
+              <tbody>{myAttendance.slice(0, 15).map((record) => <tr key={record.id}><td>{record.date}</td><td>{timeLabel(record.checkInAt)}</td><td>{timeLabel(record.checkOutAt)}</td><td>{hoursLabel(hoursFor(record))}</td><td><span className={statusPillClass(record.checkOutAt ? "Completed" : "On shift")}>{record.checkOutAt ? "Completed" : "On shift"}</span></td></tr>)}</tbody>
             </table>
             {!myAttendance.length && <p className="employee-empty">Check in to start your attendance history.</p>}
           </div>
@@ -401,31 +400,10 @@ export function EmployeeDashboard() {
 }
 
 function AdminFeatureLayout({ title, children }) {
-  const { logout } = useStore();
-  const navigate = useNavigate();
-  const links = [
-    ["/admin", "Overview", LayoutDashboard],
-    ["/admin/employees", "Employees", Users],
-    ["/admin/attendance", "Attendance", ClipboardCheck],
-    ["/admin/employee-sales", "Sales analysis", ChartNoAxesCombined],
-    ["/admin/performance", "Performance", BarChart3],
-    ["/admin/employee-reports", "Reports", Download],
-  ];
   return (
-    <div className="employee-admin-layout">
-      <aside className="employee-admin-sidebar">
-        <Link to="/admin" className="admin-logo"><img src="/images/hyni-logo.png" alt="Hyni Fashion Studio" /><span>Studio Admin</span></Link>
-        <span className="admin-label">TEAM MANAGEMENT</span>
-        {links.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === "/admin"}><Icon size={17} />{label}</NavLink>)}
-        <Link to="/admin/products"><Package size={17} />Products</Link>
-        <Link to="/" className="employee-admin-store">View storefront</Link>
-        <button className="employee-admin-signout" onClick={() => { logout(); navigate("/login"); }}><LogOut size={17} />Sign out</button>
-      </aside>
-      <section className="employee-admin-main">
-        <header className="employee-admin-top"><div><span className="eyebrow">H Y N I / ADMIN</span><h2>{title}</h2></div><span className="demo-chip">BACKEND CONNECTED</span></header>
-        <div className="employee-admin-content">{children}</div>
-      </section>
-    </div>
+    <AdminLayout title={title}>
+      <div className="employee-admin-content">{children}</div>
+    </AdminLayout>
   );
 }
 

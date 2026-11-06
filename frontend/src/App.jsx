@@ -46,6 +46,7 @@ import {
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import ProductCard, { money } from "./components/ProductCard";
+import { statusPillClass } from "./utils/status";
 import Chatbot from "./components/Chatbot";
 import AdminLayout from "./components/AdminLayout";
 import {
@@ -701,9 +702,11 @@ function Cart({ wholesale = false }) {
                   <Link to={`/product/${p.id}`}>
                     <h3>{p.name}</h3>
                   </Link>
-                  <span>{money(salePrice(p))} each</span>
-                  {p.size && <span>Size: {p.size}</span>}
-                  {p.color && <span>Colour: {p.color}</span>}
+                  <div className="cart-item-meta">
+                    <span>{money(salePrice(p))} each</span>
+                    {p.size && <span>Size: {p.size}</span>}
+                    {p.color && <span>Colour: {p.color}</span>}
+                  </div>
                   <div className="quantity-control small">
                     <button
                       onClick={() =>
@@ -1192,9 +1195,9 @@ function TrackOrder() {
           <div className="profile-panel">
             <div>
               <h2>Order status</h2>
-              <p>{order.status}</p>
+              <p><span className={statusPillClass(order.status)}>{order.status}</span></p>
               <h2>Payment</h2>
-              <p>{order.payment?.status || "—"}{order.payment?.utrNumber ? ` · UTR ${order.payment.utrNumber}` : ""}</p>
+              <p><span className={statusPillClass(order.payment?.status)}>{order.payment?.status || "—"}</span>{order.payment?.utrNumber ? ` · UTR ${order.payment.utrNumber}` : ""}</p>
               {order.payment?.rejectionReason && <p className="form-error">Rejected: {order.payment.rejectionReason}</p>}
             </div>
             <div>
@@ -1310,7 +1313,7 @@ function Profile() {
                 </div>
                 <div>
                   <b>{money(o.total)}</b>
-                  <small>{o.status} · payment {o.payment || "—"}</small>
+                  <small><span className={statusPillClass(o.status)}>{o.status}</span> · payment {o.payment || "—"}</small>
                   <Link className="text-link" to={`/track-order/${encodeURIComponent(o.id)}`}>Track order →</Link>
                 </div>
               </div>
@@ -1556,7 +1559,7 @@ function AdminDashboard() {
               <span>{label}</span>
               <Icon />
               <b>{val}</b>
-              <small>{summary ? "Live backend data" : "Awaiting backend"}</small>
+              {/* <small>{summary ? "Live backend data" : "Awaiting backend"}</small> */}
             </div>
           ))}
         </div>
@@ -2176,7 +2179,7 @@ function AdminProducts() {
                       </span>
                     </td>
                     <td>
-                      <span className="status-pill">
+                      <span className={statusPillClass(p.status || "Active")}>
                         {p.status || "Active"}
                       </span>
                     </td>

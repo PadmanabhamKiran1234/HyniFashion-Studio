@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import React, { useLayoutEffect, useRef } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   ArrowUpRight,
   Boxes,
@@ -32,11 +32,25 @@ const links = [
   ['/admin/discounts', 'Discounts', IndianRupee],
 ];
 
-export default function AdminLayout({ children }) {
+let adminSidebarScrollTop = 0;
+
+export default function AdminLayout({ children, title }) {
   const { logout } = useStore();
+  const { pathname } = useLocation();
+  const sidebarRef = useRef(null);
+  const pageTitle = title || links.find(([to]) => to === pathname)?.[1] || 'Studio dashboard';
+
+  useLayoutEffect(() => {
+    if (sidebarRef.current) sidebarRef.current.scrollTop = adminSidebarScrollTop;
+  }, [pathname]);
+
   return (
     <div className="admin-layout">
-      <aside className="admin-sidebar">
+      <aside
+        className="admin-sidebar"
+        ref={sidebarRef}
+        onScroll={(event) => { adminSidebarScrollTop = event.currentTarget.scrollTop; }}
+      >
         <Link to="/admin" className="admin-logo">
           <img src="/images/hyni-logo.png" alt="Hyni Fashion Studio" />
           <span>Studio Admin</span>
@@ -60,9 +74,9 @@ export default function AdminLayout({ children }) {
         <header className="admin-top">
           <div>
             <span className="eyebrow">H Y N I / ADMIN</span>
-            <h2>Studio dashboard</h2>
+            <h2>{pageTitle}</h2>
           </div>
-          <span className="demo-chip">LIVE BACKEND</span>
+          {/* <span className="demo-chip">LIVE BACKEND</span> */}
         </header>
         {children}
       </section>

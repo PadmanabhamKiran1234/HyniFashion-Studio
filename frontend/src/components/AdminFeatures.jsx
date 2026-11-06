@@ -17,6 +17,7 @@ import { money } from './ProductCard';
 import { api } from '../config/api';
 import { useStore } from '../context/StoreContext';
 import { useToast } from '../context/ToastContext';
+import { statusPillClass } from '../utils/status';
 
 const shortDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN') : '—');
 const dateTime = (value) => (value ? new Date(value).toLocaleString('en-IN') : '—');
@@ -194,8 +195,8 @@ export function AdminOrders() {
                         <td><button className="link-button" onClick={() => setExpanded(expanded === order.orderId ? '' : order.orderId)}>{order.orderId}</button><small>{order.items?.length || 0} line(s)</small></td>
                         <td>{order.customerDetails?.name || order.customerId?.name || '—'}<small>{order.customerDetails?.email || order.customerId?.email || ''}</small></td>
                         <td>{money(order.pricing?.finalAmount || 0)}</td>
-                        <td><span className="status-pill">{statusLabel(order.status)}</span></td>
-                        <td><span className="status-pill">{statusLabel(order.payment?.status)}</span>{order.payment?.utrNumber && <small>UTR {order.payment.utrNumber}</small>}</td>
+                        <td><span className={statusPillClass(order.status)}>{statusLabel(order.status)}</span></td>
+                        <td><span className={statusPillClass(order.payment?.status)}>{statusLabel(order.payment?.status)}</span>{order.payment?.utrNumber && <small>UTR {order.payment.utrNumber}</small>}</td>
                         <td>{shortDate(order.createdAt)}</td>
                         <td>
                           <div className="table-actions">
@@ -301,7 +302,7 @@ export function AdminPayments() {
           <div className="payment-review-grid">
             {payments.map((order) => (
               <article className="admin-card payment-review-card" key={order.orderId}>
-                <div className="admin-card-heading"><div><span className="eyebrow">{order.orderId}</span><h3>{money(order.pricing?.finalAmount || 0)}</h3></div><span className="status-pill">{statusLabel(order.status)}</span></div>
+                <div className="admin-card-heading"><div><span className="eyebrow">{order.orderId}</span><h3>{money(order.pricing?.finalAmount || 0)}</h3></div><span className={statusPillClass(order.status)}>{statusLabel(order.status)}</span></div>
                 <p><b>{order.customerDetails?.name || order.customerId?.name}</b><br />{order.customerDetails?.email || order.customerId?.email}<br />{order.customerDetails?.mobile || order.customerId?.mobile}</p>
                 <p>UTR: <b>{order.payment?.utrNumber || '—'}</b><br />Submitted: {dateTime(order.payment?.submittedAt)}</p>
                 {order.payment?.screenshotUrl && <a href={order.payment.screenshotUrl} target="_blank" rel="noreferrer"><img className="payment-proof" src={order.payment.screenshotUrl} alt={`Payment proof for ${order.orderId}`} /></a>}
@@ -395,7 +396,7 @@ export function AdminCategories() {
           <div className="table-scroll"><table><thead><tr><th>Name</th><th>Slug</th><th>Display order</th><th>Status</th><th>Products</th><th>Actions</th></tr></thead>
             <tbody>{adminCategories.map((category) => <tr key={category.categoryId || category._id}>
               <td><b>{category.name}</b><small>{category.description}</small></td>
-              <td>{category.slug}</td><td>{category.displayOrder}</td><td><span className="status-pill">{category.status}</span></td>
+              <td>{category.slug}</td><td>{category.displayOrder}</td><td><span className={statusPillClass(category.status)}>{category.status}</span></td>
               <td>{category.productCount ?? '—'}</td>
               <td><div className="table-actions"><button onClick={() => edit(category)}>Edit</button><button className="delete-action" onClick={() => remove(category)}>Delete</button></div></td>
             </tr>)}</tbody>
@@ -466,7 +467,7 @@ export function AdminInventory() {
         <section className="admin-card table-card">
           <div className="admin-card-heading"><div><span className="eyebrow">INVENTORY UNITS</span><h3>Latest {records.length} units</h3></div></div>
           <div className="table-scroll"><table><thead><tr><th>Inventory ID</th><th>Product</th><th>Status</th><th>Note</th><th>Created</th></tr></thead>
-            <tbody>{records.map((unit) => <tr key={unit._id}><td>{unit.inventoryId}</td><td>{unit.productId?.name || '—'}<small>{unit.productId?.code || ''}</small></td><td><span className="status-pill">{unit.status}</span></td><td>{unit.note || '—'}</td><td>{shortDate(unit.createdAt)}</td></tr>)}</tbody>
+            <tbody>{records.map((unit) => <tr key={unit._id}><td>{unit.inventoryId}</td><td>{unit.productId?.name || '—'}<small>{unit.productId?.code || ''}</small></td><td><span className={statusPillClass(unit.status)}>{unit.status}</span></td><td>{unit.note || '—'}</td><td>{shortDate(unit.createdAt)}</td></tr>)}</tbody>
           </table>{!records.length && <p className="employee-empty">No inventory units recorded yet.</p>}</div>
         </section>
       </div>
@@ -523,7 +524,7 @@ export function AdminCustomers() {
           <section className="admin-card table-card">
             <div className="admin-card-heading"><div><span className="eyebrow">DIRECTORY</span><h3>{customers.length} accounts</h3></div></div>
             <div className="table-scroll"><table><thead><tr><th>Customer</th><th>Contact</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
-              <tbody>{customers.map((customer) => <tr key={customer._id}><td><b>{customer.name}</b><small>{customer.userId}</small></td><td>{customer.email}<small>{customer.mobile || '—'}</small></td><td>{customer.role === 'wholesale' ? 'Wholesale' : 'Customer'}</td><td><span className="status-pill">{customer.status}</span></td><td>{shortDate(customer.createdAt)}</td></tr>)}</tbody>
+              <tbody>{customers.map((customer) => <tr key={customer._id}><td><b>{customer.name}</b><small>{customer.userId}</small></td><td>{customer.email}<small>{customer.mobile || '—'}</small></td><td>{customer.role === 'wholesale' ? 'Wholesale' : 'Customer'}</td><td><span className={statusPillClass(customer.status)}>{customer.status}</span></td><td>{shortDate(customer.createdAt)}</td></tr>)}</tbody>
             </table>{!customers.length && <p className="employee-empty">No customers match these filters.</p>}</div>
           </section>
         ) : (
