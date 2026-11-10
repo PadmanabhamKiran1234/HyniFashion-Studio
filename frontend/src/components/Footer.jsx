@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Instagram, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { BRAND } from "../config/brand";
 import { api } from "../config/api";
 import { useToast } from "../context/ToastContext";
@@ -83,14 +83,10 @@ export default function Footer() {
               Thoughtful styles for every version of you. A boutique wardrobe,
               made to feel personal.
             </p>
-            <a
-              className="social-link"
-              href={BRAND.instagram}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Instagram size={17} /> Follow our journey <ArrowUpRight size={15} />
-            </a>
+            <address className="footer-address">
+              Ground Floor, Gupta Villa, 9-29-19/A, Balaji Nagar, Asilmetta,
+              Visakhapatnam, Andhra Pradesh 530003
+            </address>
           </div>
           <div>
             <h4>EXPLORE</h4>
@@ -112,7 +108,6 @@ export default function Footer() {
         <div className="footer-bottom">
           <span>© 2026 Hyni Fashion Studio</span>
           <span>Made for the moments that matter.</span>
-          <span>Live catalogue · Backend checkout</span>
         </div>
       </footer>
     </>

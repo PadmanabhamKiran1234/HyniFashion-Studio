@@ -100,6 +100,28 @@ function Home() {
   const hot = products.filter((p) => p.hotSale).slice(0, 8),
     fresh = products.filter((p) => p.isNew).slice(0, 4),
     best = [...products].sort((a, b) => b.sold - a.sold).slice(0, 4);
+  const benefits = [
+    {
+      Icon: Sparkles,
+      title: "Thoughtfully curated",
+      description: "Indian wear for every occasion",
+    },
+    {
+      Icon: MapPin,
+      title: "Visit us in Vizag",
+      description: "A local boutique, here to help",
+    },
+    {
+      Icon: MessageCircle,
+      title: "Easy to get in touch",
+      description: "Chat or call our studio team",
+    },
+    {
+      Icon: Gem,
+      title: "Wholesale welcome",
+      description: "Minimum order ₹5,000",
+    },
+  ];
 
   return (
     <>
@@ -150,37 +172,22 @@ function Home() {
             </div>
           </div>
         </section>
-        <section className="promise-strip" aria-label="Studio benefits" tabIndex={0}>
-          {[
-            {
-              Icon: Sparkles,
-              title: "Thoughtfully curated",
-              description: "Indian wear for every occasion",
-            },
-            {
-              Icon: MapPin,
-              title: "Visit us in Vizag",
-              description: "A local boutique, here to help",
-            },
-            {
-              Icon: MessageCircle,
-              title: "Easy to get in touch",
-              description: "Chat or call our studio team",
-            },
-            {
-              Icon: Gem,
-              title: "Wholesale welcome",
-              description: "Minimum order ₹5,000",
-            },
-          ].map(({ Icon, title, description }) => (
-            <div className="promise-benefit" key={title}>
-              <span className="promise-icon"><Icon size={17} /></span>
-              <span>
-                <b>{title}</b>
-                <small>{description}</small>
-              </span>
-            </div>
-          ))}
+        <section className="promise-strip" aria-label="Studio benefits">
+          <div className="promise-track">
+            {[false, true].map((duplicate) => (
+              <div className="promise-group" key={String(duplicate)} aria-hidden={duplicate || undefined}>
+                {benefits.map(({ Icon, title, description }) => (
+                  <div className="promise-benefit" key={title}>
+                    <span className="promise-icon"><Icon size={17} /></span>
+                    <span>
+                      <b>{title}</b>
+                      <small>{description}</small>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </section>
         <section className="section container">
           <SectionTitle
@@ -763,7 +770,7 @@ function Cart({ wholesale = false }) {
                 <b>{pricing.totalWeightKg} kg ({pricing.chargeableWeightKg} kg chargeable)</b>
               </div>
             )}
-            <div>
+            {/* <div>
               <span>Delivery estimate</span>
               <b>
                 {pricing
@@ -772,7 +779,7 @@ function Cart({ wholesale = false }) {
                     ? "Complimentary"
                     : money(99)}
               </b>
-            </div>
+            </div> */}
             <div>
               <span>Discounts included</span>
               <b className="saving">Applied</b>
@@ -857,22 +864,9 @@ function Login() {
   const nav = useNavigate();
   return (
     <main className="login-page">
-      <div className="login-image">
-        <img
-          src={fashionImages.login}
-          alt="Hyni boutique fashion"
-        />
-        <div>
-          <span className="eyebrow">WELCOME TO OUR WORLD</span>
-          <h2>
-            Find a little
-            <br />
-            <em>something lovely.</em>
-          </h2>
-        </div>
-      </div>
       <form
         className="login-form"
+        autoComplete="off"
         onSubmit={async (e) => {
           e.preventDefault();
           setError("");
@@ -885,10 +879,7 @@ function Login() {
           } finally { setSubmitting(false); }
         }}
       >
-        <Link to="/" className="login-logo" aria-label="Hyni Fashion Studio home">
-          <img src="/images/hyni-logo.png" alt="Hyni Fashion Studio" />
-        </Link>
-        <h1>Come on in.</h1>
+        <h1>Welcome To Our Little World</h1>
         <label htmlFor="identifier">Email</label>
         <input
           id="identifier"
@@ -896,7 +887,7 @@ function Login() {
           placeholder="Your email address"
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
-          autoComplete="username"
+          autoComplete="off"
           required
         />
         <label htmlFor="password">Password</label>
@@ -907,7 +898,7 @@ function Login() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
+            autoComplete="new-password"
             required
           />
           <button
@@ -925,7 +916,7 @@ function Login() {
         <button className="button dark full" disabled={submitting}>
           {submitting ? "Signing in…" : "Sign in"} <ArrowRight size={16} />
         </button>
-        <small className="login-register">New to Hyni? <Link to="/register">Create a customer account</Link></small>
+        <small className="login-register">New To Hyni? <Link to="/register">Create account</Link></small>
       </form>
     </main>
   );
@@ -1454,11 +1445,11 @@ function Contact() {
           <span className="eyebrow">VISIT OUR STUDIO</span>
           <h2>Find us in Vizag</h2>
           <p>
-            Door No. 10, 160/1, opposite BVK School bus stop,
+            Ground Floor, Gupta Villa, 9-29-19/A, Balaji Nagar,
             <br />
-            Vishalakshi Nagar, Visakhapatnam,
+             Asilmetta, Visakhapatnam,
             <br />
-            Andhra Pradesh 530043
+            Andhra Pradesh 530003
           </p>
           <p>Open daily · Closes 9 pm</p>
           <a
@@ -2270,6 +2261,7 @@ export default function App() {
   const location = useLocation();
   const { pathname, search } = location;
   const isEmployeeRoute = pathname.startsWith("/employee");
+  const isChatbotHidden = pathname === "/login" || pathname.startsWith("/admin") || isEmployeeRoute;
 
   useEffect(() => {
     const elements = document.querySelectorAll(
@@ -2328,6 +2320,7 @@ export default function App() {
   return (
     <>
       {!isEmployeeRoute && <Header />}
+      <PageSEO />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
@@ -2335,7 +2328,7 @@ export default function App() {
         <Route path="/new-arrivals" element={<Shop mode="new" />} />
         <Route path="/category/:categorySlug" element={<CategoryRoute />} />
         <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/wishlist" element={<EmployeeStorefrontGuard><Protected roles={["Customer", "Wholesale Customer"]}><Wishlist /></Protected></EmployeeStorefrontGuard>} />
+        <Route path="/wishlist" element={<EmployeeStorefrontGuard><Wishlist /></EmployeeStorefrontGuard>} />
         <Route path="/cart" element={<EmployeeStorefrontGuard><CartRoute /></EmployeeStorefrontGuard>} />
         <Route path="/checkout" element={<EmployeeStorefrontGuard><Protected role="Customer"><Checkout /></Protected></EmployeeStorefrontGuard>} />
         <Route path="/wholesale/checkout" element={<EmployeeStorefrontGuard><Protected role="Wholesale Customer"><Checkout wholesale /></Protected></EmployeeStorefrontGuard>} />
@@ -2487,10 +2480,158 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       {!isEmployeeRoute && <Footer />}
-      {!isEmployeeRoute && <Chatbot />}
+      {!isChatbotHidden && <Chatbot />}
     </>
   );
 }
+
+function PageSEO() {
+  const { pathname, search } = useLocation();
+  const { products, categories } = useStore();
+  const productId = pathname.match(/^\/product\/([^/]+)$/)?.[1];
+  const product = productId ? products.find((item) => String(item.id) === productId) : null;
+  const categorySlug = pathname.match(/^\/category\/([^/]+)$/)?.[1];
+  const category = categorySlug
+    ? (categories.length ? categories : defaultCategories).find((item) => item.slug === categorySlug)
+    : null;
+  const isPublicRoute = ["/", "/shop", "/hot-sales", "/new-arrivals", "/about", "/contact"].includes(pathname)
+    || Boolean(productId)
+    || Boolean(categorySlug);
+  const noIndex = !isPublicRoute
+    || (pathname === "/shop" && Boolean(search));
+
+  useEffect(() => {
+    const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, "");
+    const pages = {
+      "/": {
+        title: "Hyni Fashion Studio | Boutique Indian Wear & Ethnic Fashion",
+        description: "Shop thoughtfully curated Indian wear, kurtis, sarees and occasion styles at Hyni Fashion Studio in Visakhapatnam.",
+      },
+      "/shop": {
+        title: "Shop Indian Wear & Boutique Fashion | Hyni Fashion Studio",
+        description: "Explore the Hyni Fashion Studio collection of thoughtfully selected Indian wear, everyday styles and occasion outfits.",
+      },
+      "/hot-sales": {
+        title: "Hot Sales & Fashion Offers | Hyni Fashion Studio",
+        description: "Discover current offers on boutique Indian wear and favourite Hyni Fashion Studio styles.",
+      },
+      "/new-arrivals": {
+        title: "New Arrivals | Hyni Fashion Studio",
+        description: "Explore the latest arrivals in Indian wear and boutique fashion at Hyni Fashion Studio.",
+      },
+      "/about": {
+        title: "Our Story | Hyni Fashion Studio",
+        description: "Get to know Hyni Fashion Studio and our thoughtfully curated boutique fashion in Visakhapatnam.",
+      },
+      "/contact": {
+        title: "Contact & Visit Our Vizag Boutique | Hyni Fashion Studio",
+        description: "Contact Hyni Fashion Studio or visit our boutique in Asilmetta, Visakhapatnam, Andhra Pradesh.",
+      },
+    };
+    const page = pages[pathname]
+      || (product
+        ? {
+          title: `${product.name} | Hyni Fashion Studio`,
+          description: product.description || `Shop ${product.name} at Hyni Fashion Studio. Explore boutique Indian wear with convenient online ordering.`,
+        }
+        : category
+          ? {
+            title: `${category.name} | Shop Indian Wear | Hyni Fashion Studio`,
+            description: `Explore ${category.name.toLowerCase()} and thoughtfully curated Indian wear at Hyni Fashion Studio.`,
+          }
+          : {
+            title: "Hyni Fashion Studio | Boutique Indian Wear",
+            description: "Discover thoughtfully curated Indian wear and boutique fashion at Hyni Fashion Studio.",
+          });
+    const canonicalUrl = `${siteUrl}${pathname}`;
+    const imageUrl = product?.image ? new URL(product.image, `${siteUrl}/`).href : `${siteUrl}/images/hyni-logo.png`;
+    const setMeta = (attribute, key, content) => {
+      let element = document.head.querySelector(`meta[${attribute}="${key}"]`);
+      if (!element) {
+        element = document.createElement("meta");
+        element.setAttribute(attribute, key);
+        document.head.appendChild(element);
+      }
+      element.setAttribute("content", content);
+    };
+
+    document.title = page.title;
+    setMeta("name", "description", page.description);
+    setMeta("name", "robots", noIndex ? "noindex, nofollow" : "index, follow");
+    setMeta("property", "og:type", product ? "product" : "website");
+    setMeta("property", "og:site_name", "Hyni Fashion Studio");
+    setMeta("property", "og:title", page.title);
+    setMeta("property", "og:description", page.description);
+    setMeta("property", "og:url", canonicalUrl);
+    setMeta("property", "og:image", imageUrl);
+    setMeta("name", "twitter:card", "summary_large_image");
+    setMeta("name", "twitter:title", page.title);
+    setMeta("name", "twitter:description", page.description);
+    setMeta("name", "twitter:image", imageUrl);
+
+    let canonical = document.head.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.appendChild(canonical);
+    }
+    canonical.href = canonicalUrl;
+
+    const structuredData = [
+      {
+        "@context": "https://schema.org",
+        "@type": "ClothingStore",
+        name: "Hyni Fashion Studio",
+        url: `${siteUrl}/`,
+        image: `${siteUrl}/images/hyni-logo.png`,
+        telephone: "+91-93473-98872",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "Ground Floor, Gupta Villa, 9-29-19/A, Balaji Nagar, Asilmetta",
+          addressLocality: "Visakhapatnam",
+          addressRegion: "Andhra Pradesh",
+          postalCode: "530003",
+          addressCountry: "IN",
+        },
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "Hyni Fashion Studio",
+        url: `${siteUrl}/`,
+      },
+    ];
+    if (product) {
+      structuredData.push({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: product.name,
+        description: page.description,
+        image: imageUrl,
+        sku: product.code || product.sku,
+        brand: { "@type": "Brand", name: "Hyni Fashion Studio" },
+        offers: {
+          "@type": "Offer",
+          priceCurrency: "INR",
+          price: Number(product.customerPrice ?? ((product.sellingPrice || product.price) * (1 - (product.discount || 0) / 100))),
+          availability: Number(product.stock) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          url: canonicalUrl,
+        },
+      });
+    }
+    let jsonLd = document.getElementById("hyni-structured-data");
+    if (!jsonLd) {
+      jsonLd = document.createElement("script");
+      jsonLd.id = "hyni-structured-data";
+      jsonLd.type = "application/ld+json";
+      document.head.appendChild(jsonLd);
+    }
+    jsonLd.textContent = JSON.stringify(structuredData);
+  }, [pathname, product, category, noIndex]);
+
+  return null;
+}
+
 function CategoryRoute() {
   const { categorySlug } = useParams();
   const { categories } = useStore();

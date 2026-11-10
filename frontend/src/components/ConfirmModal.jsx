@@ -24,12 +24,25 @@ export default function ConfirmModal({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const firstFieldRef = useRef(null);
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus?.();
+    };
+  }, []);
 
   useEffect(() => {
     setValues(initialValues);
     setError('');
     setBusy(false);
-    const timer = window.setTimeout(() => firstFieldRef.current?.focus(), 60);
+    const timer = window.setTimeout(() => {
+      (firstFieldRef.current || modalRef.current)?.focus();
+    }, 60);
     return () => window.clearTimeout(timer);
   }, [initialValues]);
 
@@ -83,9 +96,39 @@ export default function ConfirmModal({
     }
   };
 
+  const trapFocus = (event) => {
+    if (event.key !== 'Tab') return;
+    const focusable = modalRef.current?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled])',
+    );
+    if (!focusable?.length) {
+      event.preventDefault();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onCancel()}>
-      <form className="modal-card" onSubmit={submit} role="dialog" aria-modal="true" aria-label={title}>
+      <form
+        className="modal-card"
+        ref={modalRef}
+        onSubmit={submit}
+        onKeyDown={trapFocus}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+      >
         <div className="modal-head">
           <h3>{title}</h3>
           <button type="button" onClick={onCancel} disabled={busy} aria-label="Close dialog">
