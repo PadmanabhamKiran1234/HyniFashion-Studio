@@ -1474,7 +1474,7 @@ function Contact() {
             </a>
             <a
               className="contact-link"
-              href="https://wa.me/919347398872"
+              href={`https://wa.me/919347398872?text=${encodeURIComponent("Hi Hyni Fashion Studios, I want to enquire about your services and other things.")}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -2495,13 +2495,13 @@ function PageSEO() {
     ? (categories.length ? categories : defaultCategories).find((item) => item.slug === categorySlug)
     : null;
   const isPublicRoute = ["/", "/shop", "/hot-sales", "/new-arrivals", "/about", "/contact"].includes(pathname)
-    || Boolean(productId)
-    || Boolean(categorySlug);
+    || Boolean(product)
+    || Boolean(category);
   const noIndex = !isPublicRoute
     || (pathname === "/shop" && Boolean(search));
 
   useEffect(() => {
-    const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, "");
+    const siteUrl = (import.meta.env.VITE_SITE_URL || "https://www.hynifashionstudio.com").replace(/\/+$/, "");
     const pages = {
       "/": {
         title: "Hyni Fashion Studio | Boutique Indian Wear & Ethnic Fashion",
