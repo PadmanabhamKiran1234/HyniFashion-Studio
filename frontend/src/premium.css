@@ -694,29 +694,9 @@ td small,
   padding-bottom: clamp(56px, 6vw, 80px);
 }
 
-.detail-image {
-  height: min(72vh, 660px);
-  min-height: 430px;
+.detail-gallery-item {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-}
-
-.detail-thumbs {
-  margin-top: 12px;
-}
-
-.detail-thumbs button {
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  border: 2px solid transparent;
-  transition: border-color 0.2s var(--ease), opacity 0.2s var(--ease);
-  opacity: 0.72;
-}
-
-.detail-thumbs button:hover,
-.detail-thumbs button.selected {
-  opacity: 1;
-  border-color: var(--burgundy);
 }
 
 .detail-copy h1 {
@@ -2533,7 +2513,7 @@ td small {
     gap: 18px;
   }
 
-  .detail-image {
+  .detail-gallery-item {
     border-radius: var(--radius-md);
   }
 

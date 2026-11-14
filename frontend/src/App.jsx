@@ -10,6 +10,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import {
+  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   Heart,
@@ -510,13 +511,15 @@ function ProductDetail() {
   const [qty, setQty] = useState(1);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
-  const [activeImage, setActiveImage] = useState("");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [imageDirection, setImageDirection] = useState("next");
 
   useEffect(() => {
     setQty(1);
     setSelectedSize("");
     setSelectedColor("");
-    setActiveImage("");
+    setActiveImageIndex(0);
+    setImageDirection("next");
   }, [id]);
 
   if (!p)
@@ -527,23 +530,53 @@ function ProductDetail() {
       </main>
     );
   const gallery = [p.image, ...(p.images || [])].filter(Boolean);
-  const shownImage = activeImage || gallery[0] || p.image;
+  const shownImageIndex = Math.max(
+    0,
+    Math.min(activeImageIndex, gallery.length - 1),
+  );
+  const shownImage = gallery[shownImageIndex];
   return (
     <main className="detail-page container">
-      <div className="detail-image">
-        <img src={shownImage} alt={p.name} />
-        {gallery.length > 1 && (
-          <div className="detail-thumbs">
-            {gallery.map((image, index) => (
-              <button type="button" key={`${image}-${index}`} className={shownImage === image ? "selected" : ""} onClick={() => setActiveImage(image)}>
-                <img src={image} alt={`${p.name} view ${index + 1}`} />
-              </button>
-            ))}
-          </div>
-        )}
-        {p.discount > 0 && (
-          <span className="sale-badge">{p.discount}% OFF</span>
-        )}
+      <div className="detail-gallery">
+        <div className="detail-gallery-item">
+          {shownImage && (
+            <img
+              key={shownImageIndex}
+              src={shownImage}
+              className={`detail-gallery-photo slide-${imageDirection}`}
+              alt={`${p.name} view ${shownImageIndex + 1} of ${gallery.length}`}
+            />
+          )}
+          {shownImageIndex === 0 && p.discount > 0 && (
+            <span className="sale-badge">{p.discount}% OFF</span>
+          )}
+          {shownImageIndex > 0 && (
+            <button
+              type="button"
+              className="detail-gallery-arrow previous"
+              aria-label="Previous product image"
+              onClick={() => {
+                setImageDirection("previous");
+                setActiveImageIndex(shownImageIndex - 1);
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
+          {shownImageIndex < gallery.length - 1 && (
+            <button
+              type="button"
+              className="detail-gallery-arrow next"
+              aria-label="Next product image"
+              onClick={() => {
+                setImageDirection("next");
+                setActiveImageIndex(shownImageIndex + 1);
+              }}
+            >
+              <ArrowRight size={20} />
+            </button>
+          )}
+        </div>
       </div>
       <div className="detail-copy">
         <span className="eyebrow">
